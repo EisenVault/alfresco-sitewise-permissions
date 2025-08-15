@@ -1,0 +1,8 @@
+<webscript>
+    <shortname>Direct Permissions Report</shortname>
+    <description>Lists all direct user permissions for a selected site, filtering out groups</description>
+    <url>/sample/direct-permissions</url>
+    <authentication>admin</authentication>
+    <format default="json"></format>
+    <lifecycle>sample</lifecycle>
+</webscript>

@@ -4,7 +4,7 @@ This is an All-In-One (AIO) project for Alfresco SDK 3.0 that provides comprehen
 
 ## Project Overview
 
-The Alfresco User Rights Report project is designed to create a comprehensive system for reporting and analyzing user permissions across Alfresco sites, groups, and content. The project is currently in **Phase 0** (setup complete) and provides a solid foundation for developing advanced permission reporting capabilities.
+The Alfresco User Rights Report project is designed to create a comprehensive system for reporting and analyzing user permissions across Alfresco sites, groups, and content. The project has completed **Phase 0** (setup), **Phase 1** (direct permission listing), and **Phase 2** (group expansion), providing a complete permission reporting system with both direct and effective permissions via groups.
 
 ## Features Implemented
 
@@ -31,6 +31,7 @@ The Alfresco User Rights Report project is designed to create a comprehensive sy
 5. **`CreateTestContentWebScript`** - Creates test folders with base permissions
 6. **`AddUserToGroupWebScript`** - Individual user-group assignment utility
 7. **`RandomizePermissionsAndDocsWebScript`** - Applies random local permissions and generates dummy PDFs
+8. **`DirectPermissionsWebScript`** - Lists all direct and group-based permissions for a selected site (Phase 1 & 2)
 
 #### **Test Data Structure**
 - **Sites**: CRM, HR, Finance (3 main sites with Document Library)
@@ -59,12 +60,16 @@ mvn alfresco:run
 
 # Setup test data
 ./setup-test-data.sh
+
+# Test permission reporting
+./test-direct-permissions.sh
 ```
 
 #### **Access Points**
 - **Alfresco Share**: http://localhost:8080/share (admin/admin)
 - **Alfresco Repository**: http://localhost:8080/alfresco
 - **Web Scripts**: http://localhost:8080/alfresco/service/sample/*
+- **Permission Report API**: http://localhost:8080/alfresco/service/sample/direct-permissions?site={siteName}
 
 #### **Test Data Setup**
 The `setup-test-data.sh` script performs the following operations:
@@ -75,6 +80,13 @@ The `setup-test-data.sh` script performs the following operations:
 5. Creates baseline test content with permissions
 6. Applies random local permissions to folders
 7. Generates dummy PDF files with random permissions
+
+#### **Permission Reporting**
+The `test-direct-permissions.sh` script tests the permission reporting functionality:
+1. Tests direct permissions for CRM, HR, and Finance sites
+2. Validates JSON response format and data integrity
+3. Provides detailed metrics (total nodes, permissions, user vs group permissions)
+4. Includes error handling and diagnostic information
 
 ### **Project Architecture**
 
@@ -111,6 +123,7 @@ sitewise-permissions/
 - `POST /service/sample/create-test-content` - Create test content
 - `POST /service/sample/add-user-to-group` - Individual user-group assignment
 - `POST /service/sample/randomize-permissions-and-docs` - Apply random permissions and create PDFs
+- `GET /service/sample/direct-permissions?site={siteName}` - Get all permissions (direct + group-based) for a site
 
 #### **Configuration**
 - **Audit Enabled**: Permission changes are tracked for reporting
@@ -129,11 +142,24 @@ sitewise-permissions/
 - ✅ Code cleanup and optimization
 - ✅ Apache 2.0 license implementation
 
-#### **Ready for Phase 1**
-- Direct Permission Listing (No Groups)
-- Web script development for permission reporting
-- JSON API endpoint creation for User Rights Report
+#### **Completed (Phase 1)**
+- ✅ Direct Permission Listing (No Groups)
+- ✅ Web script development for permission reporting
+- ✅ JSON API endpoint creation for User Rights Report
+- ✅ Permission filtering and data structure implementation
+
+#### **Completed (Phase 2)**
+- ✅ Group Expansion functionality
+- ✅ Recursive group membership resolution
+- ✅ Infinite loop prevention in group expansion
+- ✅ Combined direct and group-based permission reporting
+- ✅ Enhanced JSON response with permission type indicators
+
+#### **Ready for Phase 3**
 - Share UI development for report visualization
+- Advanced filtering and search capabilities
+- Export functionality (CSV, PDF)
+- Real-time permission monitoring
 
 ### **Build and Deployment**
 
@@ -165,9 +191,89 @@ This project follows standard Alfresco development practices:
 - Web script development patterns
 - Integration testing framework
 
+### **API Documentation**
+
+#### **Permission Report Endpoint**
+```
+GET /service/sample/direct-permissions?site={siteName}
+```
+
+**Parameters:**
+- `site` (required): The short name of the site (e.g., "crm", "hr", "finance")
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "site": "crm",
+  "totalNodes": 15,
+  "totalPermissions": 45,
+  "userPermissions": 20,
+  "groupPermissions": 25,
+  "effectivePermissions": 120,
+  "permissions": [
+    {
+      "username": "john.doe",
+      "nodePath": "/Company Home/Sites/crm/documentLibrary/Projects",
+      "role": "SiteManager",
+      "nodeName": "Project Alpha",
+      "nodeType": "{http://www.alfresco.org/model/content/1.0}folder",
+      "groupName": "",
+      "permissionType": "DIRECT"
+    },
+    {
+      "username": "jane.smith",
+      "nodePath": "/Company Home/Sites/crm/documentLibrary/Reports",
+      "role": "SiteCollaborator",
+      "nodeName": "Q1 Report.pdf",
+      "nodeType": "{http://www.alfresco.org/model/content/1.0}content",
+      "groupName": "GROUP_site_crm_SiteCollaborator",
+      "permissionType": "GROUP"
+    }
+  ]
+}
+```
+
+**Response Fields:**
+- `success`: Boolean indicating if the request was successful
+- `site`: The site name that was queried
+- `totalNodes`: Total number of nodes (folders/files) in the site's document library
+- `totalPermissions`: Total number of permission entries found
+- `userPermissions`: Number of direct user permissions
+- `groupPermissions`: Number of group-based permissions
+- `effectivePermissions`: Total number of effective permissions after group expansion
+- `permissions`: Array of permission entries with detailed information
+
+**Permission Entry Fields:**
+- `username`: The user who has the permission
+- `nodePath`: Full path to the node in Alfresco
+- `role`: The permission role (e.g., SiteManager, SiteCollaborator)
+- `nodeName`: Name of the node (folder or file)
+- `nodeType`: Alfresco content model type
+- `groupName`: Group name if permission is group-based (empty for direct permissions)
+- `permissionType`: Either "DIRECT" or "GROUP"
+
+### **Testing and Diagnostics**
+
+#### **Test Scripts**
+- `test-direct-permissions.sh` - Comprehensive testing of permission reporting
+- `check-sites.sh` - Verify site structure and availability
+- `diagnose-finance-site.sh` - Detailed diagnostics for specific site issues
+
+#### **Manual Testing**
+```bash
+# Test with cURL
+curl -u admin:admin 'http://localhost:8080/alfresco/service/sample/direct-permissions?site=crm'
+
+# Test with Postman
+GET http://localhost:8080/alfresco/service/sample/direct-permissions?site=crm
+Headers: Authorization: Basic YWRtaW46YWRtaW4=
+```
+
 ### **Support**
 
 For issues and questions:
 - Check the [PHASE_0_SETUP.md](PHASE_0_SETUP.md) for detailed setup information
 - Review the web script endpoints for API documentation
 - Examine the test data structure for understanding the data model
+- Use the diagnostic scripts for troubleshooting

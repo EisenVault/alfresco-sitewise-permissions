@@ -231,3 +231,5 @@ hotswap-agent.properties
 # Add any application-specific files or directories here
 alf_data/*
 alf_data_dev/*
+*.log.*
+*.log

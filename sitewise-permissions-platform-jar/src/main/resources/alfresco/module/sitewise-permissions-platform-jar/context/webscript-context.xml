@@ -74,4 +74,13 @@
 		<property name="namespaceService" ref="NamespaceService" />
 	</bean>
 	
+	<bean id="webscript.alfresco.tutorials.direct-permissions.get"
+		  class="com.eisenvault.sitewisepermissions.platformsample.DirectPermissionsWebScript"
+		  parent="webscript">
+		<property name="nodeService" ref="NodeService" />
+		<property name="siteService" ref="SiteService" />
+		<property name="permissionService" ref="PermissionService" />
+		<property name="authorityService" ref="AuthorityService" />
+	</bean>
+	
 </beans>
