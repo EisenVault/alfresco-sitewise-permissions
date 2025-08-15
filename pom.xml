@@ -3,9 +3,22 @@
   <groupId>com.eisenvault</groupId>
   <artifactId>sitewise-permissions</artifactId>
   <version>1.0-SNAPSHOT</version>
-  <name>AIO - SDK 3.0</name>
-  <description>All-In-One (AIO) project for SDK 3.0</description>
+  <name>Alfresco User Rights Report - SDK 3.0</name>
+  <description>All-In-One (AIO) project for Alfresco SDK 3.0 that provides comprehensive user rights reporting functionality</description>
   <packaging>pom</packaging>
+  
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  
+  <organization>
+    <name>EisenVault</name>
+    <url>https://www.eisenvault.com</url>
+  </organization>
   <properties>
     <!-- Alfresco Maven Plugin version to use -->
     <alfresco.sdk.version>3.0.1</alfresco.sdk.version>
@@ -147,33 +160,31 @@
                     the layout of your AMP. The end result is that Maven will produce both a JAR file and an AMP with your
                     module.
                 -->
-        <!--
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-assembly-plugin</artifactId>
-                    <version>2.6</version>
-                    <executions>
-                        <execution>
-                            <id>build-amp-file</id>
-                            <phase>package</phase>
-                            <goals>
-                                <goal>single</goal>
-                            </goals>
-                            <configuration>
-                                <appendAssemblyId>false</appendAssemblyId>
-                                <descriptor>src/main/assembly/amp.xml</descriptor>
-                            </configuration>
-                        </execution>
-                    </executions>
-                    <dependencies>
-                        <dependency>
-                            <groupId>org.alfresco.maven.plugin</groupId>
-                            <artifactId>alfresco-maven-plugin</artifactId>
-                            <version>${alfresco.sdk.version}</version>
-                        </dependency>
-                    </dependencies>
-                </plugin>
-                -->
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <version>2.6</version>
+            <executions>
+                <execution>
+                    <id>build-amp-file</id>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>single</goal>
+                    </goals>
+                    <configuration>
+                        <appendAssemblyId>false</appendAssemblyId>
+                        <descriptor>src/main/assembly/amp.xml</descriptor>
+                    </configuration>
+                </execution>
+            </executions>
+            <dependencies>
+                <dependency>
+                    <groupId>org.alfresco.maven.plugin</groupId>
+                    <artifactId>alfresco-maven-plugin</artifactId>
+                    <version>${alfresco.sdk.version}</version>
+                </dependency>
+            </dependencies>
+        </plugin>
         <!-- Filter resources in any sub-project with this config -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>

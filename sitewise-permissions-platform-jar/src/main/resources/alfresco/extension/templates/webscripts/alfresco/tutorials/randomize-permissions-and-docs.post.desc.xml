@@ -1,0 +1,8 @@
+<webscript>
+    <shortname>Randomize Permissions and Docs</shortname>
+    <description>Applies random local permissions to site folders and generates dummy PDF files with random permissions</description>
+    <url>/sample/randomize-permissions-and-docs</url>
+    <authentication>admin</authentication>
+    <format default="json"></format>
+    <lifecycle>sample</lifecycle>
+</webscript>

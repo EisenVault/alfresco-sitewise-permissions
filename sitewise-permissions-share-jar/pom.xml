@@ -5,7 +5,15 @@
     <artifactId>sitewise-permissions-share-jar</artifactId>
     <name>Alfresco Share JAR Module</name>
     <packaging>jar</packaging>
-    <description>Sample Share JAR Module (to be included in the share.war) - part of AIO - SDK 3</description>
+    <description>Share JAR Module (to be included in the share.war) - part of AIO - SDK 3 for User Rights Report functionality</description>
+    
+    <licenses>
+      <license>
+        <name>Apache License, Version 2.0</name>
+        <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+        <distribution>repo</distribution>
+      </license>
+    </licenses>
 
     <parent>
         <groupId>com.eisenvault</groupId>

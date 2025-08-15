@@ -1,0 +1,8 @@
+<webscript>
+    <shortname>Create Test Groups</shortname>
+    <description>Creates test groups for User Rights Report development</description>
+    <url>/sample/create-groups</url>
+    <authentication>admin</authentication>
+    <format default="json"></format>
+    <lifecycle>sample</lifecycle>
+</webscript>
