@@ -82,5 +82,13 @@
 		<property name="permissionService" ref="PermissionService" />
 		<property name="authorityService" ref="AuthorityService" />
 	</bean>
+
+	<bean id="webscript.alfresco.tutorials.user-info.get"
+		  class="com.eisenvault.sitewisepermissions.platformsample.UserInfoWebScript"
+		  parent="webscript">
+		<property name="nodeService" ref="NodeService" />
+		<property name="personService" ref="PersonService" />
+		<property name="auditService" ref="AuditService" />
+	</bean>
 	
 </beans>

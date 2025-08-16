@@ -1,0 +1,8 @@
+<webscript>
+    <shortname>User Info</shortname>
+    <description>Get user information including status and last login date</description>
+    <url>/sample/user-info</url>
+    <authentication>admin</authentication>
+    <format default="json"></format>
+    <lifecycle>sample</lifecycle>
+</webscript>

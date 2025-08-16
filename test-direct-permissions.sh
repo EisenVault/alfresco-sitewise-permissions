@@ -3,9 +3,9 @@
 # Test Script for Direct Permissions Web Script
 
 # Configuration
-ALFRESCO_URL="http://localhost:8080/alfresco"
-ADMIN_USER="admin"
-ADMIN_PASS="admin"
+ALFRESCO_URL="${ALFRESCO_URL:-http://localhost:8080/alfresco}"
+ADMIN_USER="${ALFRESCO_ADMIN_USER:-admin}"
+ADMIN_PASS="${ALFRESCO_ADMIN_PASS:-admin}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -25,6 +25,11 @@ print_warning() {
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
+
+# Security check - warn if using default credentials
+if [ "$ALFRESCO_ADMIN_USER" = "" ] || [ "$ALFRESCO_ADMIN_PASS" = "" ]; then
+    print_warning "Using default Alfresco credentials. For production, set ALFRESCO_ADMIN_USER and ALFRESCO_ADMIN_PASS environment variables."
+fi
 
 # Function to test direct permissions web script
 test_direct_permissions() {
@@ -94,7 +99,7 @@ done
 print_status "Direct permissions testing completed!"
 print_status ""
 print_status "To test manually with cURL:"
-print_status "curl -u admin:admin 'http://localhost:8080/alfresco/service/sample/direct-permissions?site=crm'"
+print_status "curl -u \$ALFRESCO_ADMIN_USER:\$ALFRESCO_ADMIN_PASS '$ALFRESCO_URL/service/sample/direct-permissions?site=crm'"
 print_status ""
 print_status "To test with Postman:"
 print_status "GET http://localhost:8080/alfresco/service/sample/direct-permissions?site=crm"

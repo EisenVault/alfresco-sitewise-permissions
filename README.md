@@ -32,6 +32,7 @@ The Alfresco User Rights Report project is designed to create a comprehensive sy
 6. **`AddUserToGroupWebScript`** - Individual user-group assignment utility
 7. **`RandomizePermissionsAndDocsWebScript`** - Applies random local permissions and generates dummy PDFs
 8. **`DirectPermissionsWebScript`** - Lists all direct and group-based permissions for a selected site (Phase 1 & 2)
+9. **`UserInfoWebScript`** - Retrieves user information including status and last login date (Phase 3)
 
 #### **Test Data Structure**
 - **Sites**: CRM, HR, Finance (3 main sites with Document Library)
@@ -64,6 +65,26 @@ mvn alfresco:run
 # Test permission reporting
 ./test-direct-permissions.sh
 ```
+
+#### **Security Configuration**
+The test scripts use environment variables for Alfresco credentials to avoid hardcoding sensitive information:
+
+```bash
+# Set environment variables (recommended for production)
+export ALFRESCO_ADMIN_USER=your_admin_username
+export ALFRESCO_ADMIN_PASS=your_secure_password
+export ALFRESCO_URL=http://localhost:8080/alfresco
+
+# Or use the example configuration
+cp env.example .env
+# Edit .env with your actual credentials
+```
+
+**⚠️ Security Warning**: 
+- Never commit actual credentials to version control
+- The default `admin:admin` credentials are for development only
+- Use strong, unique passwords in production environments
+- Consider using Alfresco's authentication mechanisms for production deployments
 
 #### **Access Points**
 - **Alfresco Share**: http://localhost:8080/share (admin/admin)
@@ -124,6 +145,7 @@ sitewise-permissions/
 - `POST /service/sample/add-user-to-group` - Individual user-group assignment
 - `POST /service/sample/randomize-permissions-and-docs` - Apply random permissions and create PDFs
 - `GET /service/sample/direct-permissions?site={siteName}` - Get all permissions (direct + group-based) for a site
+- `GET /service/sample/user-info?username={username}&status={filter}` - Get user information with status filtering
 
 #### **Configuration**
 - **Audit Enabled**: Permission changes are tracked for reporting
@@ -155,7 +177,14 @@ sitewise-permissions/
 - ✅ Combined direct and group-based permission reporting
 - ✅ Enhanced JSON response with permission type indicators
 
-#### **Ready for Phase 3**
+#### **Completed (Phase 3)**
+- ✅ User Status & Last Login functionality
+- ✅ Separate UserInfoWebScript for user information
+- ✅ Status filtering (active/inactive/all)
+- ✅ User information retrieval with error handling
+- ✅ Modular design with single responsibility principle
+
+#### **Ready for Phase 4**
 - Share UI development for report visualization
 - Advanced filtering and search capabilities
 - Export functionality (CSV, PDF)
@@ -253,20 +282,69 @@ GET /service/sample/direct-permissions?site={siteName}
 - `groupName`: Group name if permission is group-based (empty for direct permissions)
 - `permissionType`: Either "DIRECT" or "GROUP"
 
+#### **User Info Endpoint**
+```
+GET /service/sample/user-info?username={username}&status={filter}
+```
+
+**Parameters:**
+- `username` (required): The username to get information for
+- `status` (optional): Filter by user status - "active", "inactive", or "all" (default: "all")
+
+**Response Format:**
+```json
+{
+  "success": true,
+  "statusFilter": "all",
+  "totalUsers": 1,
+  "users": [
+    {
+      "username": "admin",
+      "status": "active",
+      "lastLogin": "Not Available",
+      "firstName": "Administrator",
+      "lastName": "",
+      "email": "admin@alfresco.com"
+    }
+  ]
+}
+```
+
+**Response Fields:**
+- `success`: Boolean indicating if the request was successful
+- `statusFilter`: The status filter that was applied
+- `totalUsers`: Number of users returned
+- `users`: Array of user information objects
+
+**User Information Fields:**
+- `username`: The username
+- `status`: User status ("active", "inactive", or "unknown")
+- `lastLogin`: Last login date or "Not Available"
+- `firstName`: User's first name
+- `lastName`: User's last name
+- `email`: User's email address
+
 ### **Testing and Diagnostics**
 
 #### **Test Scripts**
 - `test-direct-permissions.sh` - Comprehensive testing of permission reporting
+- `test-user-info.sh` - Testing of user information retrieval and status filtering
 - `check-sites.sh` - Verify site structure and availability
 - `diagnose-finance-site.sh` - Detailed diagnostics for specific site issues
 
 #### **Manual Testing**
 ```bash
-# Test with cURL
+# Test permissions with cURL
 curl -u admin:admin 'http://localhost:8080/alfresco/service/sample/direct-permissions?site=crm'
+
+# Test user info with cURL
+curl -u admin:admin 'http://localhost:8080/alfresco/service/sample/user-info?username=admin&status=active'
 
 # Test with Postman
 GET http://localhost:8080/alfresco/service/sample/direct-permissions?site=crm
+Headers: Authorization: Basic YWRtaW46YWRtaW4=
+
+GET http://localhost:8080/alfresco/service/sample/user-info?username=admin&status=active
 Headers: Authorization: Basic YWRtaW46YWRtaW4=
 ```
 
