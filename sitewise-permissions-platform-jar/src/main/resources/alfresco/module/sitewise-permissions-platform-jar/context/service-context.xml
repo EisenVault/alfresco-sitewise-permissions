@@ -17,12 +17,48 @@
 -->
 <beans xmlns="http://www.springframework.org/schema/beans"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:task="http://www.springframework.org/schema/task"
        xsi:schemaLocation="http://www.springframework.org/schema/beans
-          http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+          http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+          http://www.springframework.org/schema/task
+          http://www.springframework.org/schema/task/spring-task-3.0.xsd">
+
+    <!-- Note: @Scheduled annotations not available in Alfresco 5.2 -->
+    <!-- Using manual triggering instead -->
+
+    <!-- JdbcTemplate for database operations -->
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
 
     <!-- Login Audit Service -->
     <bean id="loginAuditService" class="com.eisenvault.sitewisepermissions.platformsample.LoginAuditService">
         <property name="auditService" ref="AuditService" />
+    </bean>
+
+    <!-- Permission Audit Service -->
+    <bean id="permissionAuditService" class="com.eisenvault.sitewisepermissions.platformsample.PermissionAuditService">
+        <property name="jdbcTemplate" ref="jdbcTemplate" />
+        <property name="permissionService" ref="PermissionService" />
+        <property name="personService" ref="PersonService" />
+        <property name="authorityService" ref="AuthorityService" />
+        <property name="nodeService" ref="NodeService" />
+        <property name="namespacePrefixResolver" ref="namespaceService" />
+    </bean>
+
+    <!-- Permission Change Scheduler (RELIABLE - comprehensive permission checking) -->
+    <bean id="permissionChangeScheduler" 
+          class="com.eisenvault.sitewisepermissions.platformsample.PermissionChangeScheduler">
+        <property name="siteService" ref="SiteService"/>
+        <property name="nodeService" ref="NodeService"/>
+        <property name="permissionService" ref="PermissionService"/>
+        <property name="permissionAuditService" ref="permissionAuditService"/>
+    </bean>
+
+    <!-- Database Initializer -->
+    <bean id="databaseInitializer" class="com.eisenvault.sitewisepermissions.platformsample.DatabaseInitializer"
+          init-method="init">
+        <property name="jdbcTemplate" ref="jdbcTemplate" />
     </bean>
 
 </beans>

@@ -1,0 +1,9 @@
+<webscript>
+   <shortname>Permission Checker</shortname>
+   <description>Manually trigger permission checking for testing purposes</description>
+   <url>/alfresco/tutorials/permission-checker</url>
+   <format default="json">argument</format>
+   <authentication>admin</authentication>
+   <transaction>required</transaction>
+   <family>Alfresco Tutorials</family>
+</webscript>

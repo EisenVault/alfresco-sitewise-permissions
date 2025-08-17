@@ -52,40 +52,24 @@ public class LoginAuditService {
     public String getLastLoginDate(final String username) {
         try {
             if (auditService == null) {
-                logger.warn("Audit service is null for user: " + username);
+                logger.warn("AuditService is not available");
                 return "Audit service not available";
             }
             
-            logger.info("Querying audit data for user: " + username);
-            
+            logger.debug("Querying audit data for user: " + username);
             final List<AuditEntry> loginEntries = new ArrayList<AuditEntry>();
-            
-            // Create audit query parameters
             AuditQueryParameters params = new AuditQueryParameters();
             params.setApplicationName("alfresco-access");
             params.setUser(username);
-            
-            // Query for the last 30 days of audit data
             long fromTime = System.currentTimeMillis() - (30L * 24L * 60L * 60L * 1000L); // 30 days ago
             long toTime = System.currentTimeMillis(); // now
             params.setFromTime(fromTime);
             params.setToTime(toTime);
-            
-            logger.info("Audit query parameters - Application: alfresco-access, User: " + username + 
-                       ", From: " + new Date(fromTime) + ", To: " + new Date(toTime));
-            
-            // Query the authentication audit application - no limit to get all entries
+
             auditService.auditQuery(new AuditService.AuditQueryCallback() {
-                public boolean valuesRequired() { 
-                    return true; 
-                }
-                
+                public boolean valuesRequired() { return true; }
                 public boolean handleAuditEntry(Long entryId, String applicationName, String user, long time, Map<String, Serializable> values) {
-                    logger.debug("Audit entry received - ID: " + entryId + ", App: " + applicationName + ", User: " + user + ", Time: " + new Date(time));
-                    
-                    // Check if this is an authentication entry for our user
                     if ("alfresco-access".equals(applicationName) && username.equals(user)) {
-                        logger.info("Found matching audit entry for user " + username + " - ID: " + entryId + ", Time: " + new Date(time));
                         AuditEntry entry = new AuditEntry();
                         entry.setEntryId(entryId);
                         entry.setApplicationName(applicationName);
@@ -96,33 +80,26 @@ public class LoginAuditService {
                     }
                     return true;
                 }
-                
                 public boolean handleAuditEntryError(Long entryId, String applicationName, Throwable error) {
                     logger.warn("Error in audit entry " + entryId + " for application " + applicationName + ": " + error.getMessage());
                     return true;
                 }
             }, params, Integer.MAX_VALUE);
-            
-            logger.info("Audit query completed for user " + username + ". Found " + loginEntries.size() + " entries.");
-            
+
             if (!loginEntries.isEmpty()) {
-                // Sort by time (most recent first) and get the latest
                 Collections.sort(loginEntries, new Comparator<AuditEntry>() {
                     public int compare(AuditEntry e1, AuditEntry e2) {
                         return Long.compare(e2.getTime(), e1.getTime());
                     }
                 });
-                
                 AuditEntry latestEntry = loginEntries.get(0);
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 String result = sdf.format(new Date(latestEntry.getTime()));
-                logger.info("Latest login for user " + username + ": " + result);
+                logger.debug("Latest login for user " + username + ": " + result);
                 return result;
             }
-            
-            logger.warn("No login audit data found for user: " + username);
+            logger.debug("No login audit data found for user: " + username);
             return "No login audit data found";
-            
         } catch (Exception e) {
             logger.error("Error getting last login date for " + username + ": " + e.getMessage(), e);
             return "Error retrieving login data";

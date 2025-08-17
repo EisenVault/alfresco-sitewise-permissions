@@ -4,7 +4,7 @@ This is an All-In-One (AIO) project for Alfresco SDK 3.0 that provides comprehen
 
 ## Project Overview
 
-The Alfresco User Rights Report project is designed to create a comprehensive system for reporting and analyzing user permissions across Alfresco sites, groups, and content. The project has completed **Phase 0** (setup), **Phase 1** (direct permission listing), and **Phase 2** (group expansion), providing a complete permission reporting system with both direct and effective permissions via groups.
+The Alfresco User Rights Report project is designed to create a comprehensive system for reporting and analyzing user permissions across Alfresco sites, groups, and content. The project has completed **Phase 0** (setup), **Phase 1** (direct permission listing), **Phase 2** (group expansion), **Phase 3** (user status & login data), **Phase 4** (XLSX export with audit integration), and **Phase 5** (permission auditing), providing a complete permission reporting system with audit tracking capabilities.
 
 ## Features Implemented
 
@@ -33,7 +33,7 @@ The Alfresco User Rights Report project is designed to create a comprehensive sy
 7. **`RandomizePermissionsAndDocsWebScript`** - Applies random local permissions and generates dummy PDFs
 8. **`DirectPermissionsWebScript`** - Lists all direct and group-based permissions for a selected site (Phase 1 & 2)
 9. **`UserInfoWebScript`** - Retrieves user information including status and last login date (Phase 3)
-10. **`DirectPermissionsXlsxWebScript`** - Exports comprehensive permission reports as XLSX files with audit data (Phase 4)
+10. **`DirectPermissionsXlsxWebScript`** - Exports comprehensive permission reports as XLSX files with audit data (Phase 4 & 5)
 
 #### **Test Data Structure**
 - **Sites**: CRM, HR, Finance (3 main sites with Document Library)
@@ -126,6 +126,7 @@ sitewise-permissions/
 - **Share Module**: Frontend UI components (ready for Phase 1 development)
 - **Integration Tests**: Test framework for validation
 - **Audit Configuration**: Permission change tracking enabled
+- **Custom Database**: Permission audit table for tracking permission changes
 
 ### **Technical Details**
 
@@ -137,6 +138,8 @@ sitewise-permissions/
 - `PermissionService` - Permission assignment
 - `ContentService` - File content creation
 - `AuditService` - Audit log querying for login data
+- `PolicyComponent` - Permission change policy registration
+- `JdbcTemplate` - Database operations for permission auditing
 
 #### **Web Script Endpoints**
 - `POST /service/sample/create-users` - Create test users
@@ -148,15 +151,17 @@ sitewise-permissions/
 - `POST /service/sample/randomize-permissions-and-docs` - Apply random permissions and create PDFs
 - `GET /service/sample/direct-permissions?site={siteName}` - Get all permissions (direct + group-based) for a site
 - `GET /service/sample/user-info?username={username}&status={filter}` - Get user information with status filtering
-- `GET /service/sample/direct-permissions-xlsx?site={siteName}` - Export comprehensive permission report as XLSX file
+- `GET /service/sample/direct-permissions-xlsx?site={siteName}` - Export comprehensive permission report as XLSX file with audit data
 
 #### **Configuration**
 - **Audit Enabled**: Permission changes are tracked for reporting
 - **Login Audit Integration**: Real login data retrieval from Alfresco audit logs
+- **Permission Audit Integration**: Custom database table for tracking permission grants/revokes
 - **Apache POI**: Excel file generation with professional formatting
 - **AMP Assembly**: Production-ready packaging
 - **Java 7 Compatibility**: Optimized for Alfresco 5.2 CE
 - **Spring Context**: Proper service injection and web script registration
+- **Database Integration**: Automatic table creation and permission tracking
 
 ### **Development Status**
 
@@ -198,11 +203,22 @@ sitewise-permissions/
 - ✅ Detailed logging for audit query debugging
 - ✅ Professional Excel formatting with headers, borders, and auto-sizing
 
-#### **Ready for Phase 5**
+#### **Completed (Phase 5)**
+- ✅ Permission Auditing system with custom database table
+- ✅ PermissionAuditService for recording and querying permission changes
+- ✅ PermissionChangePolicy for intercepting permission updates
+- ✅ DatabaseInitializer for automatic table creation
+- ✅ Enhanced XLSX export with audit data integration
+- ✅ "Permission Given By", "From Date", and "To Date" columns with real audit data
+- ✅ Fallback mechanisms for pre-implementation permissions
+- ✅ Transactional database operations with proper error handling
+
+#### **Ready for Future Phases**
 - Share UI development for report visualization
 - Advanced filtering and search capabilities
 - PDF export functionality
 - Real-time permission monitoring
+- Enhanced policy integration for automatic permission tracking
 
 ### **Build and Deployment**
 
@@ -220,6 +236,8 @@ mvn clean install -DskipTests=true
 The project generates AMP files for deployment:
 - `sitewise-permissions-platform-jar-1.0-SNAPSHOT.amp`
 - `sitewise-permissions-share-jar-1.0-SNAPSHOT.amp`
+
+**Database Setup**: The permission audit table is automatically created on module startup - no manual SQL execution required.
 
 ### **License**
 
@@ -356,9 +374,9 @@ GET /service/sample/direct-permissions-xlsx?site={siteName}
 2. **Site** - Site to which the user belongs
 3. **Document Path** - Full path to the document/folder
 4. **Current Role / Permission Status** - Manager, Collaborator, Contributor, Consumer, or Viewer
-5. **Permission Given By** - Username who granted the permission (typically "System")
-6. **From Date** - Permission start date (node creation date)
-7. **To Date** - Permission end date (empty if active)
+5. **Permission Given By** - Username who granted the permission (from audit data or "System")
+6. **From Date** - Permission start date (from audit data or node creation date)
+7. **To Date** - Permission end date (from audit data, empty if active)
 8. **User Status** - Active or Disabled status
 9. **User Login** - Last login date/time from audit logs
 10. **Group Name** - Group name if permission comes via a group
@@ -366,17 +384,55 @@ GET /service/sample/direct-permissions-xlsx?site={siteName}
 **Features:**
 - **Professional Formatting**: Headers with blue background, borders, and auto-sized columns
 - **Real Login Data**: Queries Alfresco audit logs for actual login timestamps
+- **Permission Audit Data**: Uses custom database table for "Permission Given By", "From Date", and "To Date"
 - **Comprehensive Data**: Includes both direct and group-based permissions
 - **Audit Integration**: Uses `LoginAuditService` to query `alfresco-access` audit application
+- **Permission Tracking**: Uses `PermissionAuditService` for permission grant/revoke history
 - **Error Handling**: Graceful fallbacks for missing audit data
 - **Performance Optimized**: Efficient audit querying with unlimited results
+- **Database Integration**: Automatic table creation and permission change tracking
+
+### **Permission Auditing System (Phase 5)**
+
+#### **Database Schema**
+The system automatically creates a `permission_audit` table with the following structure:
+```sql
+CREATE TABLE permission_audit (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    node_ref VARCHAR(255) NOT NULL,
+    user_granted_to VARCHAR(255) NOT NULL,
+    granted_by VARCHAR(255) NOT NULL,
+    date_granted TIMESTAMP NOT NULL,
+    expiry_date TIMESTAMP NULL,
+    permission VARCHAR(255) NOT NULL,
+    action_type VARCHAR(50) NOT NULL, -- 'GRANT' or 'REVOKE'
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_node_ref (node_ref),
+    INDEX idx_user_granted_to (user_granted_to),
+    INDEX idx_granted_by (granted_by),
+    INDEX idx_date_granted (date_granted),
+    INDEX idx_action_type (action_type)
+);
+```
+
+#### **Key Components**
+- **`PermissionAuditService`**: Records and queries permission changes
+- **`PermissionChangePolicy`**: Intercepts permission updates (manual tracking mode)
+- **`DatabaseInitializer`**: Automatically creates audit table on startup
+- **Enhanced XLSX Export**: Integrates audit data for comprehensive reporting
+
+#### **Audit Data Sources**
+- **"Permission Given By"**: From authentication context when permission was granted
+- **"From Date"**: Date when permission was first granted (from audit table)
+- **"To Date"**: Expiry date if specified, or empty for active permissions
+- **Fallback Data**: Node creation date and "System" for pre-implementation permissions
 
 ### **Testing and Diagnostics**
 
 #### **Test Scripts**
 - `test-direct-permissions.sh` - Comprehensive testing of permission reporting
 - `test-user-info.sh` - Testing of user information retrieval and status filtering
-- `test-direct-permissions-xlsx.sh` - Testing of XLSX export functionality
+- `test-direct-permissions-xlsx.sh` - Testing of XLSX export functionality with audit data
 - `check-sites.sh` - Verify site structure and availability
 - `diagnose-finance-site.sh` - Detailed diagnostics for specific site issues
 
@@ -409,3 +465,4 @@ For issues and questions:
 - Review the web script endpoints for API documentation
 - Examine the test data structure for understanding the data model
 - Use the diagnostic scripts for troubleshooting
+- Check Alfresco logs for audit integration and database initialization messages

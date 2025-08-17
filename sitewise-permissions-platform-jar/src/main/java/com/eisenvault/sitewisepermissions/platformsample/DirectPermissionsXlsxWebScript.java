@@ -60,6 +60,7 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
     private AuthorityService authorityService;
     private PersonService personService;
     private LoginAuditService loginAuditService;
+    private PermissionAuditService permissionAuditService; // Added for Phase 5
     public void setNodeService(NodeService nodeService) {
         this.nodeService = nodeService;
     }
@@ -82,6 +83,10 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
 
     public void setLoginAuditService(LoginAuditService loginAuditService) {
         this.loginAuditService = loginAuditService;
+    }
+
+    public void setPermissionAuditService(PermissionAuditService permissionAuditService) {
+        this.permissionAuditService = permissionAuditService;
     }
 
     public void execute(WebScriptRequest req, WebScriptResponse res) {
@@ -280,6 +285,16 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
 
     private String getPermissionGrantedBy(NodeRef nodeRef, AccessPermission accessPermission) {
         try {
+            // Try to get from permission audit service first
+            if (permissionAuditService != null) {
+                PermissionAuditService.PermissionAuditEntry entry = permissionAuditService.getLatestPermissionGrant(
+                    nodeRef, accessPermission.getAuthority(), accessPermission.getPermission());
+                if (entry != null && entry.getGrantedBy() != null) {
+                    return entry.getGrantedBy();
+                }
+            }
+            
+            // Fallback to system
             return "System";
         } catch (Exception e) {
             logger.warn("Error getting permission granted by: " + e.getMessage());
@@ -289,7 +304,17 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
 
     private String getPermissionFromDate(NodeRef nodeRef, AccessPermission accessPermission) {
         try {
-            // Use node creation date
+            // Try to get from permission audit service first
+            if (permissionAuditService != null) {
+                PermissionAuditService.PermissionAuditEntry entry = permissionAuditService.getLatestPermissionGrant(
+                    nodeRef, accessPermission.getAuthority(), accessPermission.getPermission());
+                if (entry != null && entry.getDateGranted() != null) {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                    return sdf.format(entry.getDateGranted());
+                }
+            }
+            
+            // Fallback to node creation date
             Object createdProp = nodeService.getProperty(nodeRef, ContentModel.PROP_CREATED);
             if (createdProp != null) {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
@@ -304,6 +329,16 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
 
     private String getPermissionToDate(NodeRef nodeRef, AccessPermission accessPermission) {
         try {
+            // Try to get from permission audit service first
+            if (permissionAuditService != null) {
+                PermissionAuditService.PermissionAuditEntry entry = permissionAuditService.getLatestPermissionGrant(
+                    nodeRef, accessPermission.getAuthority(), accessPermission.getPermission());
+                if (entry != null && entry.getExpiryDate() != null) {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                    return sdf.format(entry.getExpiryDate());
+                }
+            }
+            
             // Check if the node still exists
             if (!nodeService.exists(nodeRef)) {
                 return "Deleted";
