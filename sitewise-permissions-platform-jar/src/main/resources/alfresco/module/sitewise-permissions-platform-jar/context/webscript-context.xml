@@ -90,5 +90,16 @@
 		<property name="personService" ref="PersonService" />
 		<property name="auditService" ref="AuditService" />
 	</bean>
+
+	<bean id="webscript.alfresco.tutorials.direct-permissions-xlsx.get"
+		  class="com.eisenvault.sitewisepermissions.platformsample.DirectPermissionsXlsxWebScript"
+		  parent="webscript">
+		<property name="nodeService" ref="NodeService" />
+		<property name="siteService" ref="SiteService" />
+		<property name="permissionService" ref="PermissionService" />
+		<property name="authorityService" ref="AuthorityService" />
+		<property name="personService" ref="PersonService" />
+		<property name="loginAuditService" ref="loginAuditService" />
+	</bean>
 	
 </beans>

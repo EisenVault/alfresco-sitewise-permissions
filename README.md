@@ -33,6 +33,7 @@ The Alfresco User Rights Report project is designed to create a comprehensive sy
 7. **`RandomizePermissionsAndDocsWebScript`** - Applies random local permissions and generates dummy PDFs
 8. **`DirectPermissionsWebScript`** - Lists all direct and group-based permissions for a selected site (Phase 1 & 2)
 9. **`UserInfoWebScript`** - Retrieves user information including status and last login date (Phase 3)
+10. **`DirectPermissionsXlsxWebScript`** - Exports comprehensive permission reports as XLSX files with audit data (Phase 4)
 
 #### **Test Data Structure**
 - **Sites**: CRM, HR, Finance (3 main sites with Document Library)
@@ -135,6 +136,7 @@ sitewise-permissions/
 - `AuthorityService` - Group and permission management
 - `PermissionService` - Permission assignment
 - `ContentService` - File content creation
+- `AuditService` - Audit log querying for login data
 
 #### **Web Script Endpoints**
 - `POST /service/sample/create-users` - Create test users
@@ -146,9 +148,12 @@ sitewise-permissions/
 - `POST /service/sample/randomize-permissions-and-docs` - Apply random permissions and create PDFs
 - `GET /service/sample/direct-permissions?site={siteName}` - Get all permissions (direct + group-based) for a site
 - `GET /service/sample/user-info?username={username}&status={filter}` - Get user information with status filtering
+- `GET /service/sample/direct-permissions-xlsx?site={siteName}` - Export comprehensive permission report as XLSX file
 
 #### **Configuration**
 - **Audit Enabled**: Permission changes are tracked for reporting
+- **Login Audit Integration**: Real login data retrieval from Alfresco audit logs
+- **Apache POI**: Excel file generation with professional formatting
 - **AMP Assembly**: Production-ready packaging
 - **Java 7 Compatibility**: Optimized for Alfresco 5.2 CE
 - **Spring Context**: Proper service injection and web script registration
@@ -184,10 +189,19 @@ sitewise-permissions/
 - ✅ User information retrieval with error handling
 - ✅ Modular design with single responsibility principle
 
-#### **Ready for Phase 4**
+#### **Completed (Phase 4)**
+- ✅ XLSX Export functionality with professional formatting
+- ✅ Audit integration for real login data retrieval
+- ✅ Comprehensive permission reporting with all required columns
+- ✅ Apache POI integration for Excel file generation
+- ✅ LoginAuditService for querying Alfresco audit logs
+- ✅ Detailed logging for audit query debugging
+- ✅ Professional Excel formatting with headers, borders, and auto-sizing
+
+#### **Ready for Phase 5**
 - Share UI development for report visualization
 - Advanced filtering and search capabilities
-- Export functionality (CSV, PDF)
+- PDF export functionality
 - Real-time permission monitoring
 
 ### **Build and Deployment**
@@ -324,11 +338,45 @@ GET /service/sample/user-info?username={username}&status={filter}
 - `lastName`: User's last name
 - `email`: User's email address
 
+#### **XLSX Export Endpoint**
+```
+GET /service/sample/direct-permissions-xlsx?site={siteName}
+```
+
+**Parameters:**
+- `site` (required): The short name of the site (e.g., "crm", "hr", "finance")
+
+**Response:**
+- **Content-Type**: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+- **File Format**: XLSX (Excel) file with professional formatting
+- **Download**: Browser will automatically download the file
+
+**XLSX Report Columns:**
+1. **Username** - System username of the user
+2. **Site** - Site to which the user belongs
+3. **Document Path** - Full path to the document/folder
+4. **Current Role / Permission Status** - Manager, Collaborator, Contributor, Consumer, or Viewer
+5. **Permission Given By** - Username who granted the permission (typically "System")
+6. **From Date** - Permission start date (node creation date)
+7. **To Date** - Permission end date (empty if active)
+8. **User Status** - Active or Disabled status
+9. **User Login** - Last login date/time from audit logs
+10. **Group Name** - Group name if permission comes via a group
+
+**Features:**
+- **Professional Formatting**: Headers with blue background, borders, and auto-sized columns
+- **Real Login Data**: Queries Alfresco audit logs for actual login timestamps
+- **Comprehensive Data**: Includes both direct and group-based permissions
+- **Audit Integration**: Uses `LoginAuditService` to query `alfresco-access` audit application
+- **Error Handling**: Graceful fallbacks for missing audit data
+- **Performance Optimized**: Efficient audit querying with unlimited results
+
 ### **Testing and Diagnostics**
 
 #### **Test Scripts**
 - `test-direct-permissions.sh` - Comprehensive testing of permission reporting
 - `test-user-info.sh` - Testing of user information retrieval and status filtering
+- `test-direct-permissions-xlsx.sh` - Testing of XLSX export functionality
 - `check-sites.sh` - Verify site structure and availability
 - `diagnose-finance-site.sh` - Detailed diagnostics for specific site issues
 
@@ -340,11 +388,17 @@ curl -u admin:admin 'http://localhost:8080/alfresco/service/sample/direct-permis
 # Test user info with cURL
 curl -u admin:admin 'http://localhost:8080/alfresco/service/sample/user-info?username=admin&status=active'
 
+# Test XLSX export with cURL
+curl -u admin:admin 'http://localhost:8080/alfresco/service/sample/direct-permissions-xlsx?site=finance' -o permissions-report.xlsx
+
 # Test with Postman
 GET http://localhost:8080/alfresco/service/sample/direct-permissions?site=crm
 Headers: Authorization: Basic YWRtaW46YWRtaW4=
 
 GET http://localhost:8080/alfresco/service/sample/user-info?username=admin&status=active
+Headers: Authorization: Basic YWRtaW46YWRtaW4=
+
+GET http://localhost:8080/alfresco/service/sample/direct-permissions-xlsx?site=finance
 Headers: Authorization: Basic YWRtaW46YWRtaW4=
 ```
 

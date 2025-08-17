@@ -109,6 +109,11 @@ public class DirectPermissionsWebScript extends DeclarativeWebScript {
                         totalPermissions++;
                         String authorityName = accessPermission.getAuthority();
                         
+                        // Skip GROUP_EVERYONE as it causes issues and is not useful for reporting
+                        if ("GROUP_EVERYONE".equals(authorityName)) {
+                            continue;
+                        }
+                        
                         // Check if this is a user or group
                         if (authorityName.startsWith("GROUP_")) {
                             // This is a group permission - expand it for Phase 2

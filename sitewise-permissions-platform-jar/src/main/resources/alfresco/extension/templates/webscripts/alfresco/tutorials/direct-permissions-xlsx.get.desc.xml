@@ -1,0 +1,8 @@
+<webscript>
+   <shortname>Direct Permissions XLSX Export</shortname>
+   <description>Export direct and group-based permissions for a site as XLSX</description>
+   <url>/sample/direct-permissions-xlsx?site={site}</url>
+   <format default="xlsx"></format>
+   <authentication>admin</authentication>
+   <lifecycle>sample</lifecycle>
+</webscript>

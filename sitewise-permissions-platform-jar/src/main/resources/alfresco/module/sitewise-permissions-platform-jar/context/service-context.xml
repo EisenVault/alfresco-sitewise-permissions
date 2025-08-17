@@ -20,7 +20,9 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans
           http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
-
-
+    <!-- Login Audit Service -->
+    <bean id="loginAuditService" class="com.eisenvault.sitewisepermissions.platformsample.LoginAuditService">
+        <property name="auditService" ref="AuditService" />
+    </bean>
 
 </beans>
