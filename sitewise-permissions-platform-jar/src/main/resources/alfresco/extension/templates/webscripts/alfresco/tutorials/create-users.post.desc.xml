@@ -1,8 +1,0 @@
-<webscript>
-    <shortname>Create Test Users</shortname>
-    <description>Creates test users for User Rights Report development</description>
-    <url>/sample/create-users</url>
-    <authentication>admin</authentication>
-    <format default="json"></format>
-    <lifecycle>sample</lifecycle>
-</webscript>

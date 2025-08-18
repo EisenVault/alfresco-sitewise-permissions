@@ -1,8 +1,0 @@
-<webscript>
-    <shortname>Assign Users to Groups</shortname>
-    <description>Assigns users to groups with proper error handling</description>
-    <url>/sample/assign-users-to-groups</url>
-    <authentication>admin</authentication>
-    <format default="json"></format>
-    <lifecycle>sample</lifecycle>
-</webscript>

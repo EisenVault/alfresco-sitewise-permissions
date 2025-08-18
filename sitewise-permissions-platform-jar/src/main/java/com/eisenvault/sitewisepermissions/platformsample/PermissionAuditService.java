@@ -83,30 +83,32 @@ public class PermissionAuditService {
         this.namespacePrefixResolver = namespacePrefixResolver;
     }
     
+    public JdbcTemplate getJdbcTemplate() {
+        return jdbcTemplate;
+    }
+    
     /**
      * Record a permission grant event
      * @param nodeRef the node the permission was granted on
      * @param authority the user/group the permission was granted to
      * @param permission the permission that was granted
-     * @param grantedBy the user who granted the permission
      * @param dateGranted when the permission was granted
      * @param expiryDate when the permission expires (can be null)
      */
     @Transactional
     public void recordPermissionGrant(NodeRef nodeRef, String authority, String permission, 
-                                    String grantedBy, Date dateGranted, Date expiryDate) {
+                                    Date dateGranted, Date expiryDate) {
         try {
             logger.info("RECORDING PERMISSION GRANT - NodeRef: " + nodeRef + ", Authority: " + authority + 
-                       ", Permission: " + permission + ", GrantedBy: " + grantedBy + 
+                       ", Permission: " + permission + 
                        ", DateGranted: " + dateGranted + ", ExpiryDate: " + expiryDate);
             
-            String sql = "INSERT INTO permission_audit (node_ref, user_granted_to, granted_by, date_granted, expiry_date, permission, action_type) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, 'GRANT')";
+            String sql = "INSERT INTO permission_audit (node_ref, user_granted_to, date_granted, expiry_date, permission, action_type) " +
+                        "VALUES (?, ?, ?, ?, ?, 'GRANT')";
             
             jdbcTemplate.update(sql, 
                 nodeRef.toString(),
                 authority,
-                grantedBy,
                 dateGranted,
                 expiryDate,
                 permission
@@ -120,34 +122,35 @@ public class PermissionAuditService {
     }
     
     /**
-     * Record a permission revoke event
+     * Record a permission revoke event by updating existing record
      * @param nodeRef the node the permission was revoked from
      * @param authority the user/group the permission was revoked from
      * @param permission the permission that was revoked
-     * @param revokedBy the user who revoked the permission
      * @param dateRevoked when the permission was revoked
      */
     @Transactional
     public void recordPermissionRevoke(NodeRef nodeRef, String authority, String permission, 
-                                     String revokedBy, Date dateRevoked) {
+                                     Date dateRevoked) {
         try {
             logger.info("RECORDING PERMISSION REVOKE - NodeRef: " + nodeRef + ", Authority: " + authority + 
-                       ", Permission: " + permission + ", RevokedBy: " + revokedBy + 
-                       ", DateRevoked: " + dateRevoked);
+                       ", Permission: " + permission + ", DateRevoked: " + dateRevoked);
             
-            String sql = "INSERT INTO permission_audit (node_ref, user_granted_to, granted_by, date_granted, expiry_date, permission, action_type) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, 'REVOKE')";
+            // Update the existing active record to mark it as revoked
+            String sql = "UPDATE permission_audit SET is_active = FALSE, revoked_date = ?, action_type = 'REVOKE' " +
+                        "WHERE node_ref = ? AND user_granted_to = ? AND permission = ? AND is_active = TRUE";
             
-            jdbcTemplate.update(sql, 
+            int updatedRows = jdbcTemplate.update(sql, 
+                dateRevoked,
                 nodeRef.toString(),
                 authority,
-                revokedBy,
-                dateRevoked,
-                null, // No expiry date for revokes
                 permission
             );
             
-            logger.info("SUCCESSFULLY RECORDED PERMISSION REVOKE in database");
+            if (updatedRows > 0) {
+                logger.info("SUCCESSFULLY RECORDED PERMISSION REVOKE in database");
+            } else {
+                logger.warn("No active permission record found to revoke for: " + nodeRef + ", " + authority + ", " + permission);
+            }
         } catch (Exception e) {
             logger.error("ERROR RECORDING PERMISSION REVOKE: " + e.getMessage(), e);
             throw e;
@@ -228,18 +231,36 @@ public class PermissionAuditService {
     }
     
     /**
-     * Get all users who have granted permissions (for reporting)
-     * @return list of usernames who have granted permissions
+     * Get all permission audit entries for a specific node (active and revoked)
+     * @param nodeRef the node to get audit data for
+     * @return list of permission audit entries
      */
-    public List<String> getAllPermissionGrantors() {
+    public List<PermissionAuditEntry> getAllPermissionAuditForNode(NodeRef nodeRef) {
         try {
-            String sql = "SELECT DISTINCT granted_by FROM permission_audit WHERE granted_by IS NOT NULL";
+            String sql = "SELECT * FROM permission_audit WHERE node_ref = ? ORDER BY date_granted DESC";
             
-            return jdbcTemplate.queryForList(sql, String.class);
+            return jdbcTemplate.query(sql, new PermissionAuditRowMapper(), nodeRef.toString());
             
         } catch (Exception e) {
-            logger.error("Error getting permission grantors: " + e.getMessage(), e);
-            return new java.util.ArrayList<String>();
+            logger.error("Error getting all permission audit for node " + nodeRef + ": " + e.getMessage(), e);
+            return new java.util.ArrayList<PermissionAuditEntry>();
+        }
+    }
+    
+    /**
+     * Get all permission audit entries for a specific user (active and revoked)
+     * @param username the username to get audit data for
+     * @return list of permission audit entries
+     */
+    public List<PermissionAuditEntry> getAllPermissionAuditForUser(String username) {
+        try {
+            String sql = "SELECT * FROM permission_audit WHERE user_granted_to = ? ORDER BY date_granted DESC";
+            
+            return jdbcTemplate.query(sql, new PermissionAuditRowMapper(), username);
+            
+        } catch (Exception e) {
+            logger.error("Error getting all permission audit for user " + username + ": " + e.getMessage(), e);
+            return new java.util.ArrayList<PermissionAuditEntry>();
         }
     }
     
@@ -253,11 +274,12 @@ public class PermissionAuditService {
             entry.setId(rs.getLong("id"));
             entry.setNodeRef(rs.getString("node_ref"));
             entry.setUserGrantedTo(rs.getString("user_granted_to"));
-            entry.setGrantedBy(rs.getString("granted_by"));
             entry.setDateGranted(rs.getTimestamp("date_granted"));
             entry.setExpiryDate(rs.getTimestamp("expiry_date"));
             entry.setPermission(rs.getString("permission"));
             entry.setActionType(rs.getString("action_type"));
+            entry.setIsActive(rs.getBoolean("is_active"));
+            entry.setRevokedDate(rs.getTimestamp("revoked_date"));
             entry.setCreatedAt(rs.getTimestamp("created_at"));
             return entry;
         }
@@ -270,11 +292,12 @@ public class PermissionAuditService {
         private Long id;
         private String nodeRef;
         private String userGrantedTo;
-        private String grantedBy;
         private Date dateGranted;
         private Date expiryDate;
         private String permission;
         private String actionType;
+        private Boolean isActive;
+        private Date revokedDate;
         private Date createdAt;
         
         // Getters and setters
@@ -287,9 +310,6 @@ public class PermissionAuditService {
         public String getUserGrantedTo() { return userGrantedTo; }
         public void setUserGrantedTo(String userGrantedTo) { this.userGrantedTo = userGrantedTo; }
         
-        public String getGrantedBy() { return grantedBy; }
-        public void setGrantedBy(String grantedBy) { this.grantedBy = grantedBy; }
-        
         public Date getDateGranted() { return dateGranted; }
         public void setDateGranted(Date dateGranted) { this.dateGranted = dateGranted; }
         
@@ -301,6 +321,12 @@ public class PermissionAuditService {
         
         public String getActionType() { return actionType; }
         public void setActionType(String actionType) { this.actionType = actionType; }
+        
+        public Boolean getIsActive() { return isActive; }
+        public void setIsActive(Boolean isActive) { this.isActive = isActive; }
+        
+        public Date getRevokedDate() { return revokedDate; }
+        public void setRevokedDate(Date revokedDate) { this.revokedDate = revokedDate; }
         
         public Date getCreatedAt() { return createdAt; }
         public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }

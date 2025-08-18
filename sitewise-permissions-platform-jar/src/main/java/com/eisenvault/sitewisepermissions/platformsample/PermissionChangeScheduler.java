@@ -11,7 +11,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 
@@ -31,6 +33,9 @@ public class PermissionChangeScheduler {
     
     // Track which nodes we've already processed to avoid reprocessing
     private final Set<NodeRef> processedNodes = new HashSet<>();
+    
+    // Track the last known permissions for each node to detect removals
+    private final Map<NodeRef, Set<String>> lastKnownPermissions = new HashMap<>();
     
     public void setSiteService(SiteService siteService) {
         this.siteService = siteService;
@@ -66,7 +71,7 @@ public class PermissionChangeScheduler {
     }
     
     /**
-     * Comprehensive method to check for permission changes across all nodes
+     * Comprehensive method to check for permission changes across ALL nodes in the repository
      * This is more reliable than OnUpdateNodePolicy for permission changes
      */
     public void checkPermissionChanges() {
@@ -76,8 +81,12 @@ public class PermissionChangeScheduler {
             // Clear the processed nodes cache to ensure we check all nodes
             processedNodes.clear();
             
+            // Initialize last known permissions from database if this is the first run
+            if (lastKnownPermissions.isEmpty()) {
+                initializeLastKnownPermissions();
+            }
+            
             Date now = new Date();
-            int totalNodesChecked = 0;
             int newPermissionsFound = 0;
             
             // Check all sites using Alfresco 5.2 compatible API
@@ -93,14 +102,12 @@ public class PermissionChangeScheduler {
                     if (nodeService.exists(siteNodeRef)) {
                         int sitePermissions = checkNodePermissionsInternal(siteNodeRef, now);
                         newPermissionsFound += sitePermissions;
-                        totalNodesChecked++;
                     }
                     
                     // Check document library
                     if (documentLibrary != null && nodeService.exists(documentLibrary)) {
                         int docLibPermissions = checkNodePermissionsInternal(documentLibrary, now);
                         newPermissionsFound += docLibPermissions;
-                        totalNodesChecked++;
                     }
                     
                     // Check all nodes in document library recursively
@@ -114,29 +121,11 @@ public class PermissionChangeScheduler {
                 }
             }
             
-            // Also check Company Home and other root-level nodes
-            try {
-                // Try to get Company Home using the repository service
-                NodeRef companyHome = new NodeRef("workspace://SpacesStore/company-home");
-                logger.info("Attempting to check Company Home at: " + companyHome);
-                if (nodeService.exists(companyHome)) {
-                    logger.info("Checking Company Home and all child nodes...");
-                    int companyHomePermissions = checkNodePermissionsInternal(companyHome, now);
-                    newPermissionsFound += companyHomePermissions;
-                    totalNodesChecked++;
-                    
-                    // Check all child nodes recursively
-                    int childPermissions = checkChildNodes(companyHome, now);
-                    newPermissionsFound += childPermissions;
-                } else {
-                    logger.warn("Company Home node not found at expected location: " + companyHome);
-                }
-            } catch (Exception e) {
-                logger.error("Error checking Company Home: " + e.getMessage(), e);
-            }
+            // Check ALL nodes in document libraries comprehensively
+            logger.info("Completed site-level permission checking. All document library nodes have been checked recursively.");
             
             logger.info("=== PERMISSION CHANGE CHECKER COMPLETED ===");
-            logger.info("Total nodes checked: " + totalNodesChecked);
+            logger.info("Total nodes checked: " + processedNodes.size());
             logger.info("New permissions found: " + newPermissionsFound);
             
         } catch (Exception e) {
@@ -145,10 +134,46 @@ public class PermissionChangeScheduler {
     }
     
     /**
+     * Initialize the last known permissions map from the database
+     */
+    private void initializeLastKnownPermissions() {
+        try {
+            logger.info("Initializing last known permissions from database...");
+            
+            // Get all active permissions from the database
+            String sql = "SELECT node_ref, user_granted_to, permission FROM permission_audit WHERE is_active = TRUE";
+            
+            List<Map<String, Object>> results = permissionAuditService.getJdbcTemplate().queryForList(sql);
+            
+            for (Map<String, Object> row : results) {
+                String nodeRefStr = (String) row.get("node_ref");
+                String authority = (String) row.get("user_granted_to");
+                String permission = (String) row.get("permission");
+                
+                NodeRef nodeRef = new NodeRef(nodeRefStr);
+                String permKey = authority + ":" + permission;
+                
+                if (!lastKnownPermissions.containsKey(nodeRef)) {
+                    lastKnownPermissions.put(nodeRef, new HashSet<String>());
+                }
+                lastKnownPermissions.get(nodeRef).add(permKey);
+            }
+            
+            logger.info("Initialized last known permissions for " + lastKnownPermissions.size() + " nodes");
+            
+        } catch (Exception e) {
+            logger.error("Error initializing last known permissions: " + e.getMessage(), e);
+        }
+    }
+    
+
+    
+    /**
      * Check permissions for a specific node (internal method)
      */
     private int checkNodePermissionsInternal(NodeRef nodeRef, Date now) {
         int newPermissionsFound = 0;
+        int revokedPermissionsFound = 0;
         
         try {
             // Skip if we've already processed this node recently
@@ -162,11 +187,23 @@ public class PermissionChangeScheduler {
             // Check if this node has any permissions set
             Set<AccessPermission> currentPerms = permissionService.getAllSetPermissions(nodeRef);
             
+            // Get the last known permissions for this node
+            Set<String> lastKnownPerms = lastKnownPermissions.get(nodeRef);
+            if (lastKnownPerms == null) {
+                lastKnownPerms = new HashSet<>();
+            }
+            
+            // Track current permissions for comparison
+            Set<String> currentPermKeys = new HashSet<>();
+            
             for (AccessPermission currentPerm : currentPerms) {
                 // Skip system permissions
                 if (PermissionUtils.isSystemPermission(currentPerm.getAuthority(), currentPerm.getPermission())) {
                     continue;
                 }
+                
+                String permKey = currentPerm.getAuthority() + ":" + currentPerm.getPermission();
+                currentPermKeys.add(permKey);
                 
                 // Check if this permission was already recorded in the database
                 PermissionAuditService.PermissionAuditEntry existingEntry = permissionAuditService.getLatestPermissionGrant(
@@ -174,53 +211,78 @@ public class PermissionChangeScheduler {
                 
                 if (existingEntry == null) {
                     // This is a new permission - record it
-                    // Since we can't determine who actually granted this permission,
-                    // we'll use "Unknown" as the granted by user
-                    String grantedBy = "Unknown";
-                    
                     logger.info("[PERMISSION ADDED] Node: " + nodeRef +
                                " | Authority: " + currentPerm.getAuthority() +
-                               " | Permission: " + currentPerm.getPermission() +
-                               " | By: " + grantedBy);
+                               " | Permission: " + currentPerm.getPermission());
                     
                     // Record in audit table
                     permissionAuditService.recordPermissionGrant(nodeRef, currentPerm.getAuthority(), 
-                        currentPerm.getPermission(), grantedBy, now, null);
+                        currentPerm.getPermission(), now, null);
                     
                     newPermissionsFound++;
                 }
             }
             
+            // Check for revoked permissions (permissions that existed before but not now)
+            for (String lastPermKey : lastKnownPerms) {
+                if (!currentPermKeys.contains(lastPermKey)) {
+                    // This permission was revoked
+                    String[] parts = lastPermKey.split(":", 2);
+                    if (parts.length == 2) {
+                        String authority = parts[0];
+                        String permission = parts[1];
+                        
+                        logger.info("[PERMISSION REVOKED] Node: " + nodeRef +
+                                   " | Authority: " + authority +
+                                   " | Permission: " + permission);
+                        
+                        // Record the revocation
+                        permissionAuditService.recordPermissionRevoke(nodeRef, authority, permission, now);
+                        revokedPermissionsFound++;
+                    }
+                }
+            }
+            
+            // Update the last known permissions for this node
+            lastKnownPermissions.put(nodeRef, currentPermKeys);
+            
         } catch (Exception e) {
             logger.error("Error checking permissions for node " + nodeRef + ": " + e.getMessage(), e);
         }
         
-        return newPermissionsFound;
+        return newPermissionsFound + revokedPermissionsFound;
     }
     
     /**
-     * Recursively check child nodes
+     * Recursively check ALL child nodes (both files and folders)
      */
     private int checkChildNodes(NodeRef parentNode, Date now) {
         int totalNewPermissions = 0;
+        int nodesChecked = 0;
         
         try {
             List<org.alfresco.service.cmr.repository.ChildAssociationRef> childAssocs = nodeService.getChildAssocs(parentNode);
+            logger.debug("Found " + childAssocs.size() + " child nodes under " + parentNode);
             
             for (org.alfresco.service.cmr.repository.ChildAssociationRef assoc : childAssocs) {
                 NodeRef childNode = assoc.getChildRef();
                 
                 if (nodeService.exists(childNode)) {
-                    // Check permissions for this child node
+                    nodesChecked++;
+                    
+                    // Check permissions for this child node (file or folder)
                     int childPermissions = checkNodePermissionsInternal(childNode, now);
                     totalNewPermissions += childPermissions;
                     
-                    // Recursively check children if this is a folder
-                    if (nodeService.getType(childNode).equals(org.alfresco.model.ContentModel.TYPE_FOLDER)) {
-                        int grandChildPermissions = checkChildNodes(childNode, now);
-                        totalNewPermissions += grandChildPermissions;
-                    }
+                    // Recursively check ALL children (both files and folders)
+                    // This ensures we check every single node in the document library
+                    int grandChildPermissions = checkChildNodes(childNode, now);
+                    totalNewPermissions += grandChildPermissions;
                 }
+            }
+            
+            if (nodesChecked > 0) {
+                logger.debug("Checked " + nodesChecked + " child nodes under " + parentNode + ", found " + totalNewPermissions + " new permissions");
             }
             
         } catch (Exception e) {

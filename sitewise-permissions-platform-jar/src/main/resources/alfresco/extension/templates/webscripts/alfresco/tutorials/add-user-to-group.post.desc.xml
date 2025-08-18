@@ -1,8 +1,0 @@
-<webscript>
-    <shortname>Add User to Group</shortname>
-    <description>Adds a user to a group</description>
-    <url>/sample/add-user-to-group</url>
-    <authentication>admin</authentication>
-    <format default="json"></format>
-    <lifecycle>sample</lifecycle>
-</webscript>

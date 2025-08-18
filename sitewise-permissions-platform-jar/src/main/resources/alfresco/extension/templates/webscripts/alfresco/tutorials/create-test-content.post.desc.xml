@@ -1,8 +1,0 @@
-<webscript>
-    <shortname>Create Test Content</shortname>
-    <description>Creates test folders and sets permissions for User Rights Report testing</description>
-    <url>/sample/create-test-content</url>
-    <authentication>admin</authentication>
-    <format default="json"></format>
-    <lifecycle>sample</lifecycle>
-</webscript>

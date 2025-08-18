@@ -1,8 +1,0 @@
-<webscript>
-    <shortname>Add Users to Sites</shortname>
-    <description>Adds users to sites as members</description>
-    <url>/sample/add-users-to-sites</url>
-    <authentication>admin</authentication>
-    <format default="json"></format>
-    <lifecycle>sample</lifecycle>
-</webscript>

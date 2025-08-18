@@ -22,6 +22,7 @@ import org.springframework.extensions.webscripts.WebScriptResponse;
 import org.alfresco.service.cmr.repository.NodeRef;
 import org.alfresco.service.cmr.repository.NodeService;
 import org.alfresco.service.cmr.repository.Path;
+import org.alfresco.service.namespace.QName;
 import org.alfresco.service.cmr.site.SiteService;
 import org.alfresco.service.cmr.security.PermissionService;
 import org.alfresco.service.cmr.security.AuthorityService;
@@ -160,9 +161,9 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         dataStyle.setBorderLeft(BorderStyle.THIN);
         dataStyle.setBorderRight(BorderStyle.THIN);
         
-        // Create headers
-        String[] headers = {"Username", "Site", "Document Path", "Current Role / Permission Status", 
-                           "Permission Given By", "From Date", "To Date", "User Status", "User Login", "Group Name"};
+                // Create headers
+        String[] headers = {"Username", "Site", "Node Name", "Current Role / Permission Status", 
+                           "From Date", "User Status", "User Login", "Group Name", "NodeRef", "Node Type", "Document Path"};
         
         XSSFRow headerRow = sheet.createRow(0);
         for (int i = 0; i < headers.length; i++) {
@@ -181,17 +182,18 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
             
             row.createCell(0).setCellValue(permission.get("username"));
             row.createCell(1).setCellValue(permission.get("site"));
-            row.createCell(2).setCellValue(permission.get("documentPath"));
+            row.createCell(2).setCellValue(permission.get("nodeName"));
             row.createCell(3).setCellValue(permission.get("currentRole"));
-            row.createCell(4).setCellValue(permission.get("permissionGivenBy"));
-            row.createCell(5).setCellValue(permission.get("fromDate"));
-            row.createCell(6).setCellValue(permission.get("toDate"));
-            row.createCell(7).setCellValue(permission.get("userStatus"));
-            row.createCell(8).setCellValue(permission.get("userLogin"));
-            row.createCell(9).setCellValue(permission.get("groupName"));
+            row.createCell(4).setCellValue(permission.get("fromDate"));
+            row.createCell(5).setCellValue(permission.get("userStatus"));
+            row.createCell(6).setCellValue(permission.get("userLogin"));
+            row.createCell(7).setCellValue(permission.get("groupName"));
+            row.createCell(8).setCellValue(permission.get("nodeRef"));
+            row.createCell(9).setCellValue(permission.get("nodeType"));
+            row.createCell(10).setCellValue(permission.get("documentPath"));
             
             // Apply data style to all cells
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 11; i++) {
                 row.getCell(i).setCellStyle(dataStyle);
             }
         }
@@ -257,11 +259,12 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         
         entry.put("username", username);
         entry.put("site", site);
+        entry.put("nodeRef", nodeRef.toString());
+        entry.put("nodeName", getNodeName(nodeRef));
+        entry.put("nodeType", getNodeType(nodeRef));
         entry.put("documentPath", getNodePath(nodeRef));
         entry.put("currentRole", getRoleDisplayName(accessPermission.getPermission()));
-        entry.put("permissionGivenBy", getPermissionGrantedBy(nodeRef, accessPermission));
         entry.put("fromDate", getPermissionFromDate(nodeRef, accessPermission));
-        entry.put("toDate", getPermissionToDate(nodeRef, accessPermission));
         entry.put("userStatus", getUserStatus(username));
         entry.put("userLogin", getLastLoginDate(username));
         entry.put("groupName", groupName);
@@ -283,24 +286,7 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         }
     }
 
-    private String getPermissionGrantedBy(NodeRef nodeRef, AccessPermission accessPermission) {
-        try {
-            // Try to get from permission audit service first
-            if (permissionAuditService != null) {
-                PermissionAuditService.PermissionAuditEntry entry = permissionAuditService.getLatestPermissionGrant(
-                    nodeRef, accessPermission.getAuthority(), accessPermission.getPermission());
-                if (entry != null && entry.getGrantedBy() != null) {
-                    return entry.getGrantedBy();
-                }
-            }
-            
-            // Fallback to system
-            return "System";
-        } catch (Exception e) {
-            logger.warn("Error getting permission granted by: " + e.getMessage());
-            return "Unknown";
-        }
-    }
+
 
     private String getPermissionFromDate(NodeRef nodeRef, AccessPermission accessPermission) {
         try {
@@ -327,30 +313,7 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         }
     }
 
-    private String getPermissionToDate(NodeRef nodeRef, AccessPermission accessPermission) {
-        try {
-            // Try to get from permission audit service first
-            if (permissionAuditService != null) {
-                PermissionAuditService.PermissionAuditEntry entry = permissionAuditService.getLatestPermissionGrant(
-                    nodeRef, accessPermission.getAuthority(), accessPermission.getPermission());
-                if (entry != null && entry.getExpiryDate() != null) {
-                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
-                    return sdf.format(entry.getExpiryDate());
-                }
-            }
-            
-            // Check if the node still exists
-            if (!nodeService.exists(nodeRef)) {
-                return "Deleted";
-            }
-            
-            // Node still exists, so permission is active (no end date)
-            return "";
-        } catch (Exception e) {
-            logger.warn("Error getting permission to date: " + e.getMessage());
-            return "Unknown";
-        }
-    }
+
 
     private String getUserStatus(String username) {
         try {
@@ -423,6 +386,36 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         } catch (Exception e) {
             logger.warn("Could not get path for node " + nodeRef + ": " + e.getMessage());
             return "Unknown Path";
+        }
+    }
+    
+    private String getNodeName(NodeRef nodeRef) {
+        try {
+            if (nodeService.exists(nodeRef)) {
+                Object nameProp = nodeService.getProperty(nodeRef, ContentModel.PROP_NAME);
+                if (nameProp != null) {
+                    return nameProp.toString();
+                }
+            }
+            return "Unknown";
+        } catch (Exception e) {
+            logger.warn("Could not get name for node " + nodeRef + ": " + e.getMessage());
+            return "Unknown";
+        }
+    }
+    
+    private String getNodeType(NodeRef nodeRef) {
+        try {
+            if (nodeService.exists(nodeRef)) {
+                QName type = nodeService.getType(nodeRef);
+                if (type != null) {
+                    return type.toString();
+                }
+            }
+            return "Unknown";
+        } catch (Exception e) {
+            logger.warn("Could not get type for node " + nodeRef + ": " + e.getMessage());
+            return "Unknown";
         }
     }
 

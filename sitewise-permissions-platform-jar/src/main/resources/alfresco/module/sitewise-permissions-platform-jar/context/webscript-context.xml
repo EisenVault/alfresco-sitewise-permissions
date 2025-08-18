@@ -20,60 +20,6 @@
 	   xsi:schemaLocation="http://www.springframework.org/schema/beans
           http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
-	
-	<bean id="webscript.alfresco.tutorials.create-groups.post"
-		  class="com.eisenvault.sitewisepermissions.platformsample.CreateGroupsWebScript"
-		  parent="webscript">
-		<property name="authorityService" ref="AuthorityService" />
-	</bean>
-	
-	<bean id="webscript.alfresco.tutorials.create-users.post"
-		  class="com.eisenvault.sitewisepermissions.platformsample.CreateUsersWebScript"
-		  parent="webscript">
-		<property name="personService" ref="PersonService" />
-	</bean>
-	
-	<bean id="webscript.alfresco.tutorials.add-user-to-group.post"
-		  class="com.eisenvault.sitewisepermissions.platformsample.AddUserToGroupWebScript"
-		  parent="webscript">
-		<property name="authorityService" ref="AuthorityService" />
-	</bean>
-	
-	<bean id="webscript.alfresco.tutorials.create-test-content.post"
-		  class="com.eisenvault.sitewisepermissions.platformsample.CreateTestContentWebScript"
-		  parent="webscript">
-		<property name="nodeService" ref="NodeService" />
-		<property name="siteService" ref="SiteService" />
-		<property name="permissionService" ref="PermissionService" />
-		<property name="authorityService" ref="AuthorityService" />
-		<property name="namespaceService" ref="NamespaceService" />
-	</bean>
-	
-	<bean id="webscript.alfresco.tutorials.assign-users-to-groups.post"
-		  class="com.eisenvault.sitewisepermissions.platformsample.AssignUsersToGroupsWebScript"
-		  parent="webscript">
-		<property name="authorityService" ref="AuthorityService" />
-		<property name="personService" ref="PersonService" />
-	</bean>
-	
-	<bean id="webscript.alfresco.tutorials.add-users-to-sites.post"
-		  class="com.eisenvault.sitewisepermissions.platformsample.AddUsersToSitesWebScript"
-		  parent="webscript">
-		<property name="siteService" ref="SiteService" />
-		<property name="personService" ref="PersonService" />
-	</bean>
-	
-	<bean id="webscript.alfresco.tutorials.randomize-permissions-and-docs.post"
-		  class="com.eisenvault.sitewisepermissions.platformsample.RandomizePermissionsAndDocsWebScript"
-		  parent="webscript">
-		<property name="nodeService" ref="NodeService" />
-		<property name="siteService" ref="SiteService" />
-		<property name="permissionService" ref="PermissionService" />
-		<property name="authorityService" ref="AuthorityService" />
-		<property name="contentService" ref="ContentService" />
-		<property name="namespaceService" ref="NamespaceService" />
-	</bean>
-	
 	<bean id="webscript.alfresco.tutorials.direct-permissions.get"
 		  class="com.eisenvault.sitewisepermissions.platformsample.DirectPermissionsWebScript"
 		  parent="webscript">
@@ -83,26 +29,18 @@
 		<property name="authorityService" ref="AuthorityService" />
 	</bean>
 
-	<bean id="webscript.alfresco.tutorials.user-info.get"
-		  class="com.eisenvault.sitewisepermissions.platformsample.UserInfoWebScript"
-		  parent="webscript">
-		<property name="nodeService" ref="NodeService" />
-		<property name="personService" ref="PersonService" />
-		<property name="auditService" ref="AuditService" />
-	</bean>
+	<bean id="webscript.alfresco.tutorials.direct-permissions-xlsx.get"
+          class="com.eisenvault.sitewisepermissions.platformsample.DirectPermissionsXlsxWebScript"
+          parent="webscript">
+        <property name="nodeService" ref="NodeService" />
+        <property name="siteService" ref="SiteService" />
+        <property name="permissionService" ref="PermissionService" />
+        <property name="authorityService" ref="AuthorityService" />
+        <property name="personService" ref="PersonService" />
+        <property name="loginAuditService" ref="loginAuditService" />
+        <property name="permissionAuditService" ref="permissionAuditService" />
+    </bean>
 
-	           <bean id="webscript.alfresco.tutorials.direct-permissions-xlsx.get"
-                 class="com.eisenvault.sitewisepermissions.platformsample.DirectPermissionsXlsxWebScript"
-                 parent="webscript">
-               <property name="nodeService" ref="NodeService" />
-               <property name="siteService" ref="SiteService" />
-               <property name="permissionService" ref="PermissionService" />
-               <property name="authorityService" ref="AuthorityService" />
-               <property name="personService" ref="PersonService" />
-               <property name="loginAuditService" ref="loginAuditService" />
-               <property name="permissionAuditService" ref="permissionAuditService" />
-           </bean>
-	
     <!-- Permission Checker Web Script (Comprehensive) -->
     <bean id="webscript.alfresco.tutorials.permission-checker.get"
           class="com.eisenvault.sitewisepermissions.platformsample.PermissionCheckerWebScript"
@@ -112,5 +50,4 @@
         <property name="nodeService" ref="NodeService" />
     </bean>
 
-	
 </beans>
