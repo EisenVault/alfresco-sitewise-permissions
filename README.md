@@ -1,13 +1,15 @@
-# Alfresco User Rights Report - Phase 5 Complete
+# Alfresco User Rights Report - Phase 6 Complete
 
-A comprehensive User Rights Report system for Alfresco 5.2 CE that provides detailed insights into active and inactive user permissions, with site-wise reporting and inclusion of access granted directly or via groups.
+A comprehensive User Rights Report system for Alfresco 5.2 CE that provides detailed insights into active and inactive user permissions, with site-wise reporting, advanced filtering capabilities, and inclusion of access granted directly or via groups.
 
-## **Project Status: Phase 5 Complete** ✅
+## **Project Status: Phase 6 Complete** ✅
 
 This project implements a complete permission auditing and reporting system for Alfresco 5.2 CE, including:
 
 - **Permission Auditing**: Custom database table for tracking permission changes
 - **Comprehensive Reporting**: XLSX export with detailed permission information
+- **Advanced Filtering**: Multi-parameter filtering for user status, date ranges, and username/email search
+- **Enhanced JSON API**: Complete permission data with all columns matching XLSX export
 - **Manual Permission Scanning**: Web script for on-demand permission audits
 - **OS-Level Scheduling**: Instructions for cron-based nightly scanning
 
@@ -25,6 +27,13 @@ This project implements a complete permission auditing and reporting system for 
 - **Audit Integration**: Uses custom database table for "From Date" and permission status
 - **Real Login Data**: Queries Alfresco audit logs for actual login timestamps
 
+### **Advanced Filtering System**
+- **User Status Filtering**: Filter by "All", "Active", or "Inactive" users
+- **Date Range Filtering**: Filter permissions based on grant date (yyyy-MM-dd format)
+- **Username/Email Search**: Partial match search on username or email address
+- **Combined Filters**: Apply multiple filters simultaneously for precise results
+- **Real-time Filtering**: Instant results without requiring database queries
+
 ### **Manual Permission Scanning**
 - **On-Demand Execution**: Web script for manual permission audits
 - **Comprehensive Coverage**: Scans all sites and document libraries
@@ -34,24 +43,61 @@ This project implements a complete permission auditing and reporting system for 
 
 ### **Permission Reports**
 - `GET /alfresco/service/alfresco/tutorials/direct-permissions?site={siteName}` - Get all permissions (direct + group-based) for a site
+- `GET /alfresco/service/alfresco/tutorials/direct-permissions?site={siteName}&userStatus={status}&fromDate={date}&usernameSearch={search}` - Get filtered permissions
 - `GET /alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site={siteName}` - Export comprehensive permission report as XLSX file
+- `GET /alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site={siteName}&userStatus={status}&fromDate={date}&usernameSearch={search}` - Export filtered permissions as XLSX
 
 ### **Permission Scanning**
 - `GET /alfresco/service/alfresco/tutorials/permission-checker?action=check-permissions` - Manually trigger comprehensive permission scan
 
-## **XLSX Report Columns**
+## **API Filter Parameters**
 
-1. **Username** - System username of the user
-2. **Site** - Site to which the user belongs
-3. **Node Name** - Display name of the folder or document
-4. **Current Role / Permission Status** - Manager, Collaborator, Contributor, Consumer, or Viewer
-5. **From Date** - Permission start date (from audit data or node creation date)
-6. **User Status** - Active or Disabled status
-7. **User Login** - Last login date/time from audit logs
-8. **Group Name** - Group name if permission comes via a group
-9. **NodeRef** - Alfresco NodeRef identifier for the node
-10. **Node Type** - Alfresco content type (e.g., cm:folder, cm:content, or custom document types)
-11. **Document Path** - Full path to the document/folder
+### **Available Filters**
+- **`userStatus`**: Filter by user status
+  - `All` (default) - Include all users
+  - `Active` - Only active users
+  - `Inactive` - Only inactive users
+- **`fromDate`**: Filter permissions granted from this date (inclusive)
+  - Format: `yyyy-MM-dd` (e.g., `2024-01-01`)
+- **`usernameSearch`**: Search by username or email address
+  - Partial match (case-insensitive)
+  - Searches both username and email fields
+
+### **Filter Examples**
+```bash
+# Get only active users
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&userStatus=Active"
+
+# Get permissions from specific date
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&fromDate=2024-01-01"
+
+# Search for specific user
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&usernameSearch=john"
+
+# Combine multiple filters
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&userStatus=Active&fromDate=2024-01-01&usernameSearch=john"
+```
+
+## **Report Columns**
+
+### **JSON API Response**
+The JSON API now includes all columns that were previously only available in XLSX export:
+
+1. **username** - System username of the user
+2. **site** - Site to which the user belongs
+3. **nodePath** - Full path to the document/folder
+4. **role** - Current role/permission (Manager, Collaborator, Contributor, Consumer, Viewer)
+5. **nodeName** - Display name of the folder or document
+6. **nodeType** - Alfresco content type (e.g., cm:folder, cm:content)
+7. **nodeRef** - Alfresco NodeRef identifier for the node
+8. **fromDate** - Permission start date (from audit data or node creation date)
+9. **userStatus** - Active or Inactive status
+10. **userLogin** - Last login date/time from audit logs
+11. **groupName** - Group name if permission comes via a group
+12. **permissionType** - "DIRECT" or "GROUP" indicating permission source
+
+### **XLSX Report Columns**
+Same as JSON API plus additional formatting and professional styling.
 
 ## **Database Schema**
 
@@ -170,14 +216,31 @@ $ALFRESCO_HOME/alfresco.sh restart
 curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=test-site"
 ```
 
-2. **Test permission scanning**:
+2. **Test filtering functionality**:
+```bash
+# Test user status filter
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=test-site&userStatus=Active"
+
+# Test date filter
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=test-site&fromDate=2024-01-01"
+
+# Test username search
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=test-site&usernameSearch=admin"
+```
+
+3. **Test permission scanning**:
 ```bash
 curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/permission-checker?action=check-permissions"
 ```
 
-3. **Download XLSX report**:
+4. **Download XLSX report**:
 ```bash
 curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site=test-site" -o permissions-report.xlsx
+```
+
+5. **Test filtered XLSX export**:
+```bash
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site=test-site&userStatus=Active" -o filtered-permissions.xlsx
 ```
 
 ## **Known Limitations**
@@ -233,10 +296,11 @@ The system has a critical limitation regarding permission changes that occur bet
 ## **Development and Customization**
 
 ### **Adding New Report Columns**
-1. Modify `DirectPermissionsXlsxWebScript.java`
+1. Modify `DirectPermissionsXlsxWebScript.java` and `DirectPermissionsWebScript.java`
 2. Update headers array and data mapping
 3. Add corresponding helper methods
-4. Update README documentation
+4. Update FreeMarker template (`direct-permissions.get.json.ftl`)
+5. Update README documentation
 
 ### **Customizing Permission Scanning**
 1. Modify `PermissionChangeScheduler.java`
@@ -269,6 +333,17 @@ The system has a critical limitation regarding permission changes that occur bet
    - Check file permissions
    - Review memory settings
 
+4. **Filtering Not Working**:
+   - Verify parameter names are correct (`userStatus`, `fromDate`, `usernameSearch`)
+   - Check date format is `yyyy-MM-dd`
+   - Ensure site name is correct
+   - Review Alfresco logs for parameter parsing errors
+
+5. **JSON Response Missing Columns**:
+   - Verify FreeMarker template includes all fields
+   - Check that helper methods are working correctly
+   - Ensure all required services are properly injected
+
 ### **Log Locations**
 - **Alfresco Logs**: `$ALFRESCO_HOME/logs/alfresco.log`
 - **Tomcat Logs**: `$ALFRESCO_HOME/logs/catalina.out`
@@ -287,6 +362,20 @@ The system has a critical limitation regarding permission changes that occur bet
 2. **Scan frequency**: Balance between coverage and performance
 3. **Memory settings**: Adjust JVM heap for large repositories
 4. **Log rotation**: Implement log rotation for scan logs
+
+## **Phase 6 Enhancements**
+
+### **New Features Added**
+- **Advanced Filtering System**: Multi-parameter filtering for precise permission reporting
+- **Enhanced JSON API**: Complete data consistency between JSON and XLSX responses
+- **Improved User Experience**: Real-time filtering without database queries
+- **Comprehensive Documentation**: Complete API documentation with examples
+
+### **Technical Improvements**
+- **FreeMarker Template Updates**: Enhanced JSON response template
+- **Service Integration**: Improved integration with Alfresco audit services
+- **Code Optimization**: Removed debug logging for production readiness
+- **Error Handling**: Enhanced parameter validation and error reporting
 
 ---
 

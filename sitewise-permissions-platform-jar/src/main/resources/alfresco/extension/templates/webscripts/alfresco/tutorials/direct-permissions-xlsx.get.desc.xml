@@ -1,8 +1,27 @@
 <webscript>
    <shortname>Direct Permissions XLSX Export</shortname>
-   <description>Export direct and group-based permissions for a site as XLSX</description>
-   <url>/sample/direct-permissions-xlsx?site={site}</url>
+   <description>Export direct and group-based permissions for a site as XLSX. Supports filtering by user status, from date, and username search.</description>
+   <url>/alfresco/tutorials/direct-permissions-xlsx?site={site}&amp;userStatus={userStatus}&amp;fromDate={fromDate}&amp;usernameSearch={usernameSearch}</url>
    <format default="xlsx"></format>
    <authentication>admin</authentication>
    <lifecycle>sample</lifecycle>
+   <family>Alfresco Tutorials</family>
+   <arguments>
+       <arg>
+           <shortname>site</shortname>
+           <description>Site short name (required)</description>
+       </arg>
+       <arg>
+           <shortname>userStatus</shortname>
+           <description>Filter by user status: All, Active, Inactive (optional)</description>
+       </arg>
+       <arg>
+           <shortname>fromDate</shortname>
+           <description>Filter by permission grant date from (yyyy-MM-dd format, optional)</description>
+       </arg>
+       <arg>
+           <shortname>usernameSearch</shortname>
+           <description>Search by username or email (partial match, optional)</description>
+       </arg>
+   </arguments>
 </webscript>

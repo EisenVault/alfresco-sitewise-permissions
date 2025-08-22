@@ -1,8 +1,27 @@
 <webscript>
     <shortname>Direct Permissions Report</shortname>
-    <description>Lists all direct user permissions for a selected site, filtering out groups</description>
-    <url>/sample/direct-permissions</url>
+    <description>Lists all direct user permissions for a selected site, filtering out groups. Supports filtering by user status, from date, and username search.</description>
+    <url>/alfresco/tutorials/direct-permissions?site={site}&amp;userStatus={userStatus}&amp;fromDate={fromDate}&amp;usernameSearch={usernameSearch}</url>
     <authentication>admin</authentication>
     <format default="json"></format>
     <lifecycle>sample</lifecycle>
+    <family>Alfresco Tutorials</family>
+    <arguments>
+        <arg>
+            <shortname>site</shortname>
+            <description>Site short name (required)</description>
+        </arg>
+        <arg>
+            <shortname>userStatus</shortname>
+            <description>Filter by user status: All, Active, Inactive (optional)</description>
+        </arg>
+        <arg>
+            <shortname>fromDate</shortname>
+            <description>Filter by permission grant date from (yyyy-MM-dd format, optional)</description>
+        </arg>
+        <arg>
+            <shortname>usernameSearch</shortname>
+            <description>Search by username or email (partial match, optional)</description>
+        </arg>
+    </arguments>
 </webscript>

@@ -51,6 +51,7 @@ import java.util.HashSet;
 import java.util.Date;
 import java.text.SimpleDateFormat;
 import org.alfresco.service.cmr.security.AccessPermission;
+import java.text.ParseException;
 
 public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
     private static Log logger = LogFactory.getLog(DirectPermissionsXlsxWebScript.class);
@@ -92,13 +93,40 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
 
     public void execute(WebScriptRequest req, WebScriptResponse res) {
         try {
+            // Parse filter parameters
             String siteShortName = req.getParameter("site");
+            String userStatusFilter = req.getParameter("userStatus"); // All, Active, Inactive
+            String fromDateFilter = req.getParameter("fromDate"); // yyyy-MM-dd format
+            String usernameSearch = req.getParameter("usernameSearch"); // partial match
 
             if (siteShortName == null) {
                 res.setStatus(400);
                 res.setContentType("application/json");
                 res.getWriter().write("{\"success\":false,\"error\":\"Missing required parameter: site\"}");
                 return;
+            }
+
+            // Validate user status filter
+            if (userStatusFilter != null && !userStatusFilter.isEmpty() && 
+                !userStatusFilter.equals("All") && !userStatusFilter.equals("Active") && !userStatusFilter.equals("Inactive")) {
+                res.setStatus(400);
+                res.setContentType("application/json");
+                res.getWriter().write("{\"success\":false,\"error\":\"Invalid userStatus parameter. Must be 'All', 'Active', or 'Inactive'\"}");
+                return;
+            }
+
+            // Parse from date filter
+            Date fromDate = null;
+            if (fromDateFilter != null && !fromDateFilter.isEmpty()) {
+                try {
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                    fromDate = sdf.parse(fromDateFilter);
+                } catch (ParseException e) {
+                    res.setStatus(400);
+                    res.setContentType("application/json");
+                    res.getWriter().write("{\"success\":false,\"error\":\"Invalid fromDate parameter. Must be in yyyy-MM-dd format\"}");
+                    return;
+                }
             }
 
             NodeRef siteNodeRef = siteService.getSite(siteShortName).getNodeRef();
@@ -117,12 +145,24 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
                 return;
             }
 
-            // Generate XLSX file
+            // Generate XLSX file with filters
             res.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            res.setHeader("Content-Disposition", "attachment; filename=permissions_" + siteShortName + ".xlsx");
+            String filename = "permissions_" + siteShortName;
+            if (userStatusFilter != null && !userStatusFilter.equals("All")) {
+                filename += "_" + userStatusFilter.toLowerCase();
+            }
+            if (fromDateFilter != null && !fromDateFilter.isEmpty()) {
+                filename += "_from_" + fromDateFilter.replace("-", "");
+            }
+            if (usernameSearch != null && !usernameSearch.isEmpty()) {
+                filename += "_search_" + usernameSearch.replaceAll("[^a-zA-Z0-9]", "");
+            }
+            filename += ".xlsx";
+            
+            res.setHeader("Content-Disposition", "attachment; filename=" + filename);
             
             try (OutputStream out = res.getOutputStream()) {
-                generateXlsxFile(siteShortName, documentLibrary, out);
+                generateXlsxFile(siteShortName, documentLibrary, out, userStatusFilter, fromDate, usernameSearch);
             }
 
         } catch (Exception e) {
@@ -137,7 +177,8 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         }
     }
 
-    private void generateXlsxFile(String siteShortName, NodeRef documentLibrary, OutputStream out) throws Exception {
+    private void generateXlsxFile(String siteShortName, NodeRef documentLibrary, OutputStream out, 
+                                String userStatusFilter, Date fromDate, String usernameSearch) throws Exception {
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("Permissions");
         
@@ -161,7 +202,7 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         dataStyle.setBorderLeft(BorderStyle.THIN);
         dataStyle.setBorderRight(BorderStyle.THIN);
         
-                // Create headers
+        // Create headers
         String[] headers = {"Username", "Site", "Node Name", "Current Role / Permission Status", 
                            "From Date", "User Status", "User Login", "Group Name", "NodeRef", "Node Type", "Document Path"};
         
@@ -172,8 +213,8 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
             cell.setCellStyle(headerStyle);
         }
         
-        // Get permissions data
-        List<Map<String, String>> permissions = getPermissionsData(siteShortName, documentLibrary);
+        // Get permissions data with filters
+        List<Map<String, String>> permissions = getPermissionsData(siteShortName, documentLibrary, userStatusFilter, fromDate, usernameSearch);
         
         // Add data rows
         int rowNum = 1;
@@ -204,14 +245,13 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         }
         
         workbook.write(out);
-        // Don't call close() on workbook as it's not available in all POI versions
-        // The workbook will be garbage collected
         
         logger.info("XLSX permissions report for site " + siteShortName + 
-                   ": " + permissions.size() + " permissions found (direct + group-based)");
+                   ": " + permissions.size() + " permissions found after filtering (direct + group-based)");
     }
 
-    private List<Map<String, String>> getPermissionsData(String siteShortName, NodeRef documentLibrary) {
+    private List<Map<String, String>> getPermissionsData(String siteShortName, NodeRef documentLibrary, 
+                                                        String userStatusFilter, Date fromDate, String usernameSearch) {
         List<Map<String, String>> permissions = new ArrayList<Map<String, String>>();
         List<NodeRef> allNodes = getAllNodesInContainer(documentLibrary);
         
@@ -231,18 +271,24 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
                         Set<String> groupUsers = getUsersInGroup(authorityName, new HashSet<String>());
                         
                         for (String groupUser : groupUsers) {
+                            // Apply filters
+                            if (shouldIncludePermission(groupUser, nodeRef, accessPermission, userStatusFilter, fromDate, usernameSearch)) {
+                                Map<String, String> permissionEntry = createPermissionEntry(
+                                    groupUser, siteShortName, nodeRef, accessPermission, 
+                                    authorityName, "GROUP"
+                                );
+                                permissions.add(permissionEntry);
+                            }
+                        }
+                    } else {
+                        // Apply filters
+                        if (shouldIncludePermission(authorityName, nodeRef, accessPermission, userStatusFilter, fromDate, usernameSearch)) {
                             Map<String, String> permissionEntry = createPermissionEntry(
-                                groupUser, siteShortName, nodeRef, accessPermission, 
-                                authorityName, "GROUP"
+                                authorityName, siteShortName, nodeRef, accessPermission, 
+                                "", "DIRECT"
                             );
                             permissions.add(permissionEntry);
                         }
-                    } else {
-                        Map<String, String> permissionEntry = createPermissionEntry(
-                            authorityName, siteShortName, nodeRef, accessPermission, 
-                            "", "DIRECT"
-                        );
-                        permissions.add(permissionEntry);
                     }
                 }
             } catch (Exception e) {
@@ -315,6 +361,70 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
 
 
 
+    /**
+     * Check if a permission should be included based on the applied filters
+     */
+    private boolean shouldIncludePermission(String username, NodeRef nodeRef, AccessPermission accessPermission, 
+                                          String userStatusFilter, Date fromDate, String usernameSearch) {
+        try {
+            // Username search filter
+            if (usernameSearch != null && !usernameSearch.isEmpty()) {
+                if (!username.toLowerCase().contains(usernameSearch.toLowerCase())) {
+                    // Also check email if available
+                    String userEmail = getUserEmail(username);
+                    if (userEmail == null || !userEmail.toLowerCase().contains(usernameSearch.toLowerCase())) {
+                        return false;
+                    }
+                }
+            }
+
+            // User status filter
+            if (userStatusFilter != null && !userStatusFilter.isEmpty() && !userStatusFilter.equals("All")) {
+                String userStatus = getUserStatus(username);
+                if (!userStatusFilter.equals(userStatus)) {
+                    return false;
+                }
+            }
+
+            // From date filter
+            if (fromDate != null) {
+                Date permissionDate = getPermissionDate(nodeRef, accessPermission);
+                if (permissionDate != null && permissionDate.before(fromDate)) {
+                    return false;
+                }
+            }
+
+            return true;
+        } catch (Exception e) {
+            logger.warn("Error applying filters for user " + username + ": " + e.getMessage());
+            return true; // Include if filter fails
+        }
+    }
+
+    /**
+     * Get user email address
+     */
+    private String getUserEmail(String username) {
+        try {
+            if (personService.personExists(username)) {
+                NodeRef personNode = personService.getPerson(username);
+                if (personNode != null && nodeService.exists(personNode)) {
+                    Object emailProp = nodeService.getProperty(personNode, ContentModel.PROP_EMAIL);
+                    if (emailProp != null) {
+                        return emailProp.toString();
+                    }
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            logger.warn("Error getting email for user " + username + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get user status (Active/Inactive)
+     */
     private String getUserStatus(String username) {
         try {
             if (personService.personExists(username)) {
@@ -329,6 +439,32 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         } catch (Exception e) {
             logger.warn("Error getting user status for " + username + ": " + e.getMessage());
             return "Error";
+        }
+    }
+
+    /**
+     * Get permission grant date
+     */
+    private Date getPermissionDate(NodeRef nodeRef, AccessPermission accessPermission) {
+        try {
+            // Try to get from permission audit service first
+            if (permissionAuditService != null) {
+                PermissionAuditService.PermissionAuditEntry entry = permissionAuditService.getLatestPermissionGrant(
+                    nodeRef, accessPermission.getAuthority(), accessPermission.getPermission());
+                if (entry != null && entry.getDateGranted() != null) {
+                    return entry.getDateGranted();
+                }
+            }
+            
+            // Fallback to node creation date
+            Object createdProp = nodeService.getProperty(nodeRef, ContentModel.PROP_CREATED);
+            if (createdProp != null) {
+                return (Date) createdProp;
+            }
+            return null;
+        } catch (Exception e) {
+            logger.warn("Error getting permission date: " + e.getMessage());
+            return null;
         }
     }
 

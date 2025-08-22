@@ -27,6 +27,9 @@
 		<property name="siteService" ref="SiteService" />
 		<property name="permissionService" ref="PermissionService" />
 		<property name="authorityService" ref="AuthorityService" />
+		<property name="personService" ref="PersonService" />
+		<property name="loginAuditService" ref="loginAuditService" />
+		<property name="permissionAuditService" ref="permissionAuditService" />
 	</bean>
 
 	<bean id="webscript.alfresco.tutorials.direct-permissions-xlsx.get"
