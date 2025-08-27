@@ -99,11 +99,18 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
             String fromDateFilter = req.getParameter("fromDate"); // yyyy-MM-dd format
             String usernameSearch = req.getParameter("usernameSearch"); // partial match
 
-            if (siteShortName == null) {
-                res.setStatus(400);
-                res.setContentType("application/json");
-                res.getWriter().write("{\"success\":false,\"error\":\"Missing required parameter: site\"}");
-                return;
+            // Determine which sites to process
+            List<String> sitesToProcess = new ArrayList<String>();
+            if (siteShortName == null || siteShortName.isEmpty()) {
+                // No site specified - process all sites
+                List<org.alfresco.service.cmr.site.SiteInfo> allSites = siteService.listSites(null, null, 1000);
+                for (org.alfresco.service.cmr.site.SiteInfo siteInfo : allSites) {
+                    sitesToProcess.add(siteInfo.getShortName());
+                }
+                logger.info("No site specified, processing all " + sitesToProcess.size() + " sites");
+            } else {
+                // Specific site specified
+                sitesToProcess.add(siteShortName);
             }
 
             // Validate user status filter
@@ -129,25 +136,14 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
                 }
             }
 
-            NodeRef siteNodeRef = siteService.getSite(siteShortName).getNodeRef();
-            if (siteNodeRef == null) {
-                res.setStatus(404);
-                res.setContentType("application/json");
-                res.getWriter().write("{\"success\":false,\"error\":\"Site " + siteShortName + " not found\"}");
-                return;
-            }
-
-            NodeRef documentLibrary = siteService.getContainer(siteShortName, "documentLibrary");
-            if (documentLibrary == null) {
-                res.setStatus(404);
-                res.setContentType("application/json");
-                res.getWriter().write("{\"success\":false,\"error\":\"Document Library not found in site " + siteShortName + "\"}");
-                return;
-            }
-
             // Generate XLSX file with filters
             res.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            String filename = "permissions_" + siteShortName;
+            String filename = "permissions";
+            if (siteShortName != null && !siteShortName.isEmpty()) {
+                filename += "_" + siteShortName;
+            } else {
+                filename += "_all_sites";
+            }
             if (userStatusFilter != null && !userStatusFilter.equals("All")) {
                 filename += "_" + userStatusFilter.toLowerCase();
             }
@@ -162,7 +158,7 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
             res.setHeader("Content-Disposition", "attachment; filename=" + filename);
             
             try (OutputStream out = res.getOutputStream()) {
-                generateXlsxFile(siteShortName, documentLibrary, out, userStatusFilter, fromDate, usernameSearch);
+                generateXlsxFile(sitesToProcess, out, userStatusFilter, fromDate, usernameSearch);
             }
 
         } catch (Exception e) {
@@ -177,7 +173,7 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         }
     }
 
-    private void generateXlsxFile(String siteShortName, NodeRef documentLibrary, OutputStream out, 
+    private void generateXlsxFile(List<String> sitesToProcess, OutputStream out, 
                                 String userStatusFilter, Date fromDate, String usernameSearch) throws Exception {
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("Permissions");
@@ -213,12 +209,35 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
             cell.setCellStyle(headerStyle);
         }
         
-        // Get permissions data with filters
-        List<Map<String, String>> permissions = getPermissionsData(siteShortName, documentLibrary, userStatusFilter, fromDate, usernameSearch);
+        // Get permissions data with filters for all sites
+        List<Map<String, String>> allPermissions = new ArrayList<Map<String, String>>();
+        
+        for (String currentSiteName : sitesToProcess) {
+            try {
+                NodeRef siteNodeRef = siteService.getSite(currentSiteName).getNodeRef();
+                if (siteNodeRef == null) {
+                    logger.warn("Site " + currentSiteName + " not found, skipping");
+                    continue;
+                }
+
+                NodeRef documentLibrary = siteService.getContainer(currentSiteName, "documentLibrary");
+                if (documentLibrary == null) {
+                    logger.warn("Document Library not found in site " + currentSiteName + ", skipping");
+                    continue;
+                }
+
+                List<Map<String, String>> sitePermissions = getPermissionsData(currentSiteName, documentLibrary, userStatusFilter, fromDate, usernameSearch);
+                allPermissions.addAll(sitePermissions);
+                
+                logger.info("Processed site " + currentSiteName + ": " + sitePermissions.size() + " permissions");
+            } catch (Exception e) {
+                logger.warn("Error processing site " + currentSiteName + ": " + e.getMessage());
+            }
+        }
         
         // Add data rows
         int rowNum = 1;
-        for (Map<String, String> permission : permissions) {
+        for (Map<String, String> permission : allPermissions) {
             XSSFRow row = sheet.createRow(rowNum++);
             
             row.createCell(0).setCellValue(permission.get("username"));
@@ -246,8 +265,13 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         
         workbook.write(out);
         
-        logger.info("XLSX permissions report for site " + siteShortName + 
-                   ": " + permissions.size() + " permissions found after filtering (direct + group-based)");
+        if (sitesToProcess.size() == 1) {
+            logger.info("XLSX permissions report for site " + sitesToProcess.get(0) + 
+                       ": " + allPermissions.size() + " permissions found after filtering (direct + group-based)");
+        } else {
+            logger.info("XLSX permissions report for all sites: " + allPermissions.size() + 
+                       " permissions found after filtering (direct + group-based)");
+        }
     }
 
     private List<Map<String, String>> getPermissionsData(String siteShortName, NodeRef documentLibrary, 

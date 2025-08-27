@@ -97,11 +97,18 @@ public class DirectPermissionsWebScript extends DeclarativeWebScript {
             String fromDateFilter = req.getParameter("fromDate"); // yyyy-MM-dd format
             String usernameSearch = req.getParameter("usernameSearch"); // partial match
 
-            if (siteShortName == null) {
-                status.setCode(400);
-                model.put("success", false);
-                model.put("error", "Missing required parameter: site");
-                return model;
+            // Determine which sites to process
+            List<String> sitesToProcess = new ArrayList<String>();
+            if (siteShortName == null || siteShortName.isEmpty()) {
+                // No site specified - process all sites
+                List<org.alfresco.service.cmr.site.SiteInfo> allSites = siteService.listSites(null, null, 1000);
+                for (org.alfresco.service.cmr.site.SiteInfo siteInfo : allSites) {
+                    sitesToProcess.add(siteInfo.getShortName());
+                }
+                logger.info("No site specified, processing all " + sitesToProcess.size() + " sites");
+            } else {
+                // Specific site specified
+                sitesToProcess.add(siteShortName);
             }
 
             // Validate user status filter
@@ -127,27 +134,26 @@ public class DirectPermissionsWebScript extends DeclarativeWebScript {
                 }
             }
 
-            NodeRef siteNodeRef = siteService.getSite(siteShortName).getNodeRef();
-            if (siteNodeRef == null) {
-                status.setCode(404);
-                model.put("success", false);
-                model.put("error", "Site " + siteShortName + " not found");
-                return model;
-            }
+            // Process each site
+            for (String currentSiteName : sitesToProcess) {
+                try {
+                    NodeRef siteNodeRef = siteService.getSite(currentSiteName).getNodeRef();
+                    if (siteNodeRef == null) {
+                        logger.warn("Site " + currentSiteName + " not found, skipping");
+                        continue;
+                    }
 
-            NodeRef documentLibrary = siteService.getContainer(siteShortName, "documentLibrary");
-            if (documentLibrary == null) {
-                status.setCode(404);
-                model.put("success", false);
-                model.put("error", "Document Library not found in site " + siteShortName);
-                return model;
-            }
+                    NodeRef documentLibrary = siteService.getContainer(currentSiteName, "documentLibrary");
+                    if (documentLibrary == null) {
+                        logger.warn("Document Library not found in site " + currentSiteName + ", skipping");
+                        continue;
+                    }
 
-            // Get all nodes in the document library recursively
-            List<NodeRef> allNodes = getAllNodesInContainer(documentLibrary);
-            logger.info("Found " + allNodes.size() + " nodes in site " + siteShortName);
+                    // Get all nodes in the document library recursively
+                    List<NodeRef> allNodes = getAllNodesInContainer(documentLibrary);
+                    logger.info("Found " + allNodes.size() + " nodes in site " + currentSiteName);
 
-            for (NodeRef nodeRef : allNodes) {
+                    for (NodeRef nodeRef : allNodes) {
                 try {
                     // Get all set permissions for this node
                     Set<AccessPermission> setPermissions = permissionService.getAllSetPermissions(nodeRef);
@@ -178,21 +184,22 @@ public class DirectPermissionsWebScript extends DeclarativeWebScript {
                                     filteredPermissions++;
                                     
                                                                     Map<String, String> permissionEntry = new HashMap<String, String>();
-                                permissionEntry.put("username", groupUser);
-                                permissionEntry.put("nodePath", getNodePath(nodeRef));
-                                permissionEntry.put("role", accessPermission.getPermission());
-                                permissionEntry.put("nodeName", (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NAME));
-                                permissionEntry.put("nodeType", nodeService.getType(nodeRef).toString());
-                                permissionEntry.put("groupName", authorityName);
-                                permissionEntry.put("permissionType", "GROUP");
-                                
-                                permissionEntry.put("site", siteShortName);
-                                permissionEntry.put("nodeRef", nodeRef.toString());
-                                permissionEntry.put("fromDate", getPermissionFromDate(nodeRef, accessPermission));
-                                permissionEntry.put("userStatus", getUserStatus(groupUser));
-                                permissionEntry.put("userLogin", getLastLoginDate(groupUser));
+                                    Map<String, String> groupPermissionEntry = new HashMap<String, String>();
+                                    groupPermissionEntry.put("username", groupUser);
+                                    groupPermissionEntry.put("nodePath", getNodePath(nodeRef));
+                                    groupPermissionEntry.put("role", accessPermission.getPermission());
+                                    groupPermissionEntry.put("nodeName", (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NAME));
+                                    groupPermissionEntry.put("nodeType", nodeService.getType(nodeRef).toString());
+                                    groupPermissionEntry.put("groupName", authorityName);
+                                    groupPermissionEntry.put("permissionType", "GROUP");
                                     
-                                    permissions.add(permissionEntry);
+                                    groupPermissionEntry.put("site", currentSiteName);
+                                    groupPermissionEntry.put("nodeRef", nodeRef.toString());
+                                    groupPermissionEntry.put("fromDate", getPermissionFromDate(nodeRef, accessPermission));
+                                    groupPermissionEntry.put("userStatus", getUserStatus(groupUser));
+                                    groupPermissionEntry.put("userLogin", getLastLoginDate(groupUser));
+                                    
+                                    permissions.add(groupPermissionEntry);
                                 }
                             }
                         } else {
@@ -212,7 +219,7 @@ public class DirectPermissionsWebScript extends DeclarativeWebScript {
                                 permissionEntry.put("groupName", "");
                                 permissionEntry.put("permissionType", "DIRECT");
                                 
-                                permissionEntry.put("site", siteShortName);
+                                permissionEntry.put("site", currentSiteName);
                                 permissionEntry.put("nodeRef", nodeRef.toString());
                                 permissionEntry.put("fromDate", getPermissionFromDate(nodeRef, accessPermission));
                                 permissionEntry.put("userStatus", getUserStatus(authorityName));
@@ -225,11 +232,21 @@ public class DirectPermissionsWebScript extends DeclarativeWebScript {
                 } catch (Exception e) {
                     logger.warn("Error processing permissions for node " + nodeRef + ": " + e.getMessage());
                 }
-            }
+                    } // End of node processing loop
+                } catch (Exception e) {
+                    logger.warn("Error processing site " + currentSiteName + ": " + e.getMessage());
+                }
+            } // End of site processing loop
 
             model.put("success", true);
-            model.put("site", siteShortName);
-            model.put("totalNodes", allNodes.size());
+            if (siteShortName != null && !siteShortName.isEmpty()) {
+                model.put("site", siteShortName);
+            } else {
+                model.put("site", "all");
+                model.put("sitesProcessed", sitesToProcess.size());
+            }
+            // Note: totalNodes is not available for all-sites queries as it varies per site
+            model.put("totalNodes", 0);
             model.put("totalPermissions", totalPermissions);
             model.put("userPermissions", userPermissions);
             model.put("groupPermissions", groupPermissions);
@@ -244,8 +261,13 @@ public class DirectPermissionsWebScript extends DeclarativeWebScript {
             filters.put("usernameSearch", usernameSearch);
             model.put("appliedFilters", filters);
 
-            logger.info("Direct permissions report for site " + siteShortName + 
-                       ": " + permissions.size() + " permissions found after filtering (direct + group-based)");
+            if (siteShortName != null && !siteShortName.isEmpty()) {
+                logger.info("Direct permissions report for site " + siteShortName + 
+                           ": " + permissions.size() + " permissions found after filtering (direct + group-based)");
+            } else {
+                logger.info("Direct permissions report for all sites: " + permissions.size() + 
+                           " permissions found after filtering (direct + group-based)");
+            }
 
         } catch (Exception e) {
             status.setCode(500);

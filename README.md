@@ -42,10 +42,14 @@ This project implements a complete permission auditing and reporting system for 
 ## **Web Script Endpoints**
 
 ### **Permission Reports**
-- `GET /alfresco/service/alfresco/tutorials/direct-permissions?site={siteName}` - Get all permissions (direct + group-based) for a site
-- `GET /alfresco/service/alfresco/tutorials/direct-permissions?site={siteName}&userStatus={status}&fromDate={date}&usernameSearch={search}` - Get filtered permissions
-- `GET /alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site={siteName}` - Export comprehensive permission report as XLSX file
-- `GET /alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site={siteName}&userStatus={status}&fromDate={date}&usernameSearch={search}` - Export filtered permissions as XLSX
+- `GET /alfresco/service/alfresco/tutorials/direct-permissions?site={siteName}` - Get all permissions (direct + group-based) for a specific site
+- `GET /alfresco/service/alfresco/tutorials/direct-permissions` - Get all permissions across all sites
+- `GET /alfresco/service/alfresco/tutorials/direct-permissions?site={siteName}&userStatus={status}&fromDate={date}&usernameSearch={search}` - Get filtered permissions for a specific site
+- `GET /alfresco/service/alfresco/tutorials/direct-permissions?userStatus={status}&fromDate={date}&usernameSearch={search}` - Get filtered permissions across all sites
+- `GET /alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site={siteName}` - Export comprehensive permission report as XLSX file for a specific site
+- `GET /alfresco/service/alfresco/tutorials/direct-permissions-xlsx` - Export comprehensive permission report as XLSX file for all sites
+- `GET /alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site={siteName}&userStatus={status}&fromDate={date}&usernameSearch={search}` - Export filtered permissions as XLSX for a specific site
+- `GET /alfresco/service/alfresco/tutorials/direct-permissions-xlsx?userStatus={status}&fromDate={date}&usernameSearch={search}` - Export filtered permissions as XLSX for all sites
 
 ### **Permission Scanning**
 - `GET /alfresco/service/alfresco/tutorials/permission-checker?action=check-permissions` - Manually trigger comprehensive permission scan
@@ -53,6 +57,9 @@ This project implements a complete permission auditing and reporting system for 
 ## **API Filter Parameters**
 
 ### **Available Filters**
+- **`site`**: Site short name (optional)
+  - If specified: Returns permissions for the specific site only
+  - If not specified: Returns permissions for all sites
 - **`userStatus`**: Filter by user status
   - `All` (default) - Include all users
   - `Active` - Only active users
@@ -65,17 +72,26 @@ This project implements a complete permission auditing and reporting system for 
 
 ### **Filter Examples**
 ```bash
-# Get only active users
+# Get permissions for all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions"
+
+# Get permissions for specific site
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM"
+
+# Get only active users across all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?userStatus=Active"
+
+# Get only active users for specific site
 curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&userStatus=Active"
 
-# Get permissions from specific date
-curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&fromDate=2024-01-01"
+# Get permissions from specific date across all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?fromDate=2024-01-01"
 
-# Search for specific user
-curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&usernameSearch=john"
+# Search for specific user across all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?usernameSearch=john"
 
-# Combine multiple filters
-curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&userStatus=Active&fromDate=2024-01-01&usernameSearch=john"
+# Combine multiple filters across all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?userStatus=Active&fromDate=2024-01-01&usernameSearch=john"
 ```
 
 ## **Report Columns**
@@ -95,6 +111,29 @@ The JSON API now includes all columns that were previously only available in XLS
 10. **userLogin** - Last login date/time from audit logs
 11. **groupName** - Group name if permission comes via a group
 12. **permissionType** - "DIRECT" or "GROUP" indicating permission source
+
+### **All-Sites Response**
+When no site is specified, the response includes additional information:
+
+```json
+{
+  "success": true,
+  "site": "all",
+  "sitesProcessed": 5,
+  "totalNodes": 45,
+  "totalPermissions": 120,
+  "userPermissions": 50,
+  "groupPermissions": 70,
+  "effectivePermissions": 180,
+  "filteredPermissions": 35,
+  "permissions": [...],
+  "appliedFilters": {
+    "userStatus": "Active",
+    "fromDate": "2024-01-01",
+    "usernameSearch": "john"
+  }
+}
+```
 
 ### **XLSX Report Columns**
 Same as JSON API plus additional formatting and professional styling.
@@ -218,14 +257,20 @@ curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/d
 
 2. **Test filtering functionality**:
 ```bash
-# Test user status filter
+# Test all sites functionality
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions"
+
+# Test user status filter for all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?userStatus=Active"
+
+# Test date filter for all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?fromDate=2024-01-01"
+
+# Test username search for all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?usernameSearch=admin"
+
+# Test specific site functionality
 curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=test-site&userStatus=Active"
-
-# Test date filter
-curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=test-site&fromDate=2024-01-01"
-
-# Test username search
-curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=test-site&usernameSearch=admin"
 ```
 
 3. **Test permission scanning**:
@@ -240,7 +285,14 @@ curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/d
 
 5. **Test filtered XLSX export**:
 ```bash
+# Test all sites XLSX export
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions-xlsx" -o all-sites-permissions.xlsx
+
+# Test filtered XLSX export for specific site
 curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site=test-site&userStatus=Active" -o filtered-permissions.xlsx
+
+# Test filtered XLSX export for all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions-xlsx?userStatus=Active" -o all-sites-filtered-permissions.xlsx
 ```
 
 ## **Known Limitations**

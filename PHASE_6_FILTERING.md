@@ -2,23 +2,29 @@
 
 ## Overview
 
-Phase 6 implements comprehensive filtering capabilities for both the JSON API and XLSX export endpoints. The filtering functionality allows users to narrow down permission reports based on user status, permission grant dates, and username/email search. Additionally, the JSON API has been enhanced to include all columns that were previously only available in the XLSX export.
+Phase 6 implements comprehensive filtering capabilities for both the JSON API and XLSX export endpoints. The filtering functionality allows users to narrow down permission reports based on user status, permission grant dates, and username/email search. Additionally, the JSON API has been enhanced to include all columns that were previously only available in the XLSX export. The system now supports querying permissions across all sites when no specific site is specified.
 
 ## New Filter Parameters
 
-### 1. User Status Filter (`userStatus`)
+### 1. Site Filter (`site`)
+- **Type**: Optional parameter
+- **Description**: Site short name to filter permissions
+- **Default**: If not specified, returns permissions for all sites
+- **Behavior**: When omitted, the system processes all available sites
+
+### 2. User Status Filter (`userStatus`)
 - **Type**: Dropdown selection
 - **Values**: `All`, `Active`, `Inactive`
 - **Description**: Filters permissions based on user account status
 - **Default**: `All` (no filtering)
 
-### 2. From Date Filter (`fromDate`)
+### 3. From Date Filter (`fromDate`)
 - **Type**: Date input
 - **Format**: `yyyy-MM-dd` (e.g., `2024-01-01`)
 - **Description**: Filters permissions granted on or after the specified date
 - **Default**: No filtering (all dates included)
 
-### 3. Username Search Filter (`usernameSearch`)
+### 4. Username Search Filter (`usernameSearch`)
 - **Type**: Text input
 - **Description**: Partial match search on username or email address
 - **Case**: Case-insensitive
@@ -39,20 +45,26 @@ GET /alfresco/service/alfresco/tutorials/direct-permissions
 
 **Example Requests:**
 ```bash
-# Basic request (no filters)
+# Basic request for all sites (no site specified)
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions"
+
+# Basic request for specific site
 curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM"
 
-# With user status filter
+# With user status filter for all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?userStatus=Active"
+
+# With user status filter for specific site
 curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&userStatus=Active"
 
-# With from date filter
-curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&fromDate=2024-01-01"
+# With from date filter for all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?fromDate=2024-01-01"
 
-# With username search
-curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&usernameSearch=john"
+# With username search for all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?usernameSearch=john"
 
-# With multiple filters
-curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?site=CRM&userStatus=Active&fromDate=2024-01-01&usernameSearch=john"
+# With multiple filters for all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions?userStatus=Active&fromDate=2024-01-01&usernameSearch=john"
 ```
 
 ### XLSX Export Endpoint
@@ -68,10 +80,16 @@ GET /alfresco/service/alfresco/tutorials/direct-permissions-xlsx
 
 **Example Requests:**
 ```bash
-# Basic export (no filters)
+# Basic export for all sites (no site specified)
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions-xlsx" -o all_sites_permissions.xlsx
+
+# Basic export for specific site
 curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site=CRM" -o permissions.xlsx
 
-# With multiple filters
+# With multiple filters for all sites
+curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions-xlsx?userStatus=Active&fromDate=2024-01-01&usernameSearch=john" -o all_sites_filtered_permissions.xlsx
+
+# With multiple filters for specific site
 curl -u admin:admin "http://localhost:8080/alfresco/service/alfresco/tutorials/direct-permissions-xlsx?site=CRM&userStatus=Active&fromDate=2024-01-01&usernameSearch=john" -o filtered_permissions.xlsx
 ```
 
@@ -276,6 +294,7 @@ Phase 6 successfully implements comprehensive filtering capabilities for the per
 
 **Key Achievements:**
 - ✅ **Advanced Filtering**: Multi-parameter filtering system implemented
+- ✅ **All-Sites Support**: Optional site parameter for cross-site reporting
 - ✅ **Enhanced JSON API**: Complete column parity with XLSX export
 - ✅ **FreeMarker Template**: Updated to include all new columns
 - ✅ **Production Ready**: Debug logging removed, code optimized

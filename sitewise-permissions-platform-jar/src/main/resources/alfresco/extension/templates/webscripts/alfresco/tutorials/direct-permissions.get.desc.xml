@@ -1,6 +1,6 @@
 <webscript>
     <shortname>Direct Permissions Report</shortname>
-    <description>Lists all direct user permissions for a selected site, filtering out groups. Supports filtering by user status, from date, and username search.</description>
+    <description>Lists all direct user permissions for a selected site or all sites, filtering out groups. Supports filtering by user status, from date, and username search. If no site is specified, returns permissions for all sites.</description>
     <url>/alfresco/tutorials/direct-permissions?site={site}&amp;userStatus={userStatus}&amp;fromDate={fromDate}&amp;usernameSearch={usernameSearch}</url>
     <authentication>admin</authentication>
     <format default="json"></format>
@@ -9,7 +9,7 @@
     <arguments>
         <arg>
             <shortname>site</shortname>
-            <description>Site short name (required)</description>
+            <description>Site short name (optional - if not specified, returns permissions for all sites)</description>
         </arg>
         <arg>
             <shortname>userStatus</shortname>
