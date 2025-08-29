@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<webscript>
+   <shortname>Permission Checker</shortname>
+   <description>Manually trigger comprehensive permission scan</description>
+   <url>/alfresco/tutorials/permission-checker</url>
+   <format default="json">argument</format>
+   <authentication>user</authentication>
+   <transaction>readonly</transaction>
+   <family>Alfresco Tutorials</family>
+   <lifecycle>public_api</lifecycle>
+</webscript>

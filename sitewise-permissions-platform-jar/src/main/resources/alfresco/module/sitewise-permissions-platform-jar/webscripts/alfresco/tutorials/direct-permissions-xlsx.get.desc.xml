@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<webscript>
+   <shortname>Direct Permissions XLSX Export</shortname>
+   <description>Export comprehensive permission report as XLSX file</description>
+   <url>/alfresco/tutorials/direct-permissions-xlsx</url>
+   <format default="xlsx">argument</format>
+   <authentication>user</authentication>
+   <transaction>readonly</transaction>
+   <family>Alfresco Tutorials</family>
+   <lifecycle>public_api</lifecycle>
+</webscript>

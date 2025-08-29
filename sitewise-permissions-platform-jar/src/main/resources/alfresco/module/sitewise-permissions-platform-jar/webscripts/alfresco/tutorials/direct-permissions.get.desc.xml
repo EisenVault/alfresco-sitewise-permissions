@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<webscript>
+   <shortname>Direct Permissions</shortname>
+   <description>Get comprehensive permission report with filtering capabilities</description>
+   <url>/alfresco/tutorials/direct-permissions</url>
+   <format default="json">argument</format>
+   <authentication>user</authentication>
+   <transaction>readonly</transaction>
+   <family>Alfresco Tutorials</family>
+   <lifecycle>public_api</lifecycle>
+</webscript>

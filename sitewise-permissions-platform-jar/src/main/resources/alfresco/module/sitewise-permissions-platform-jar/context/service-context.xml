@@ -59,6 +59,7 @@
     <bean id="databaseInitializer" class="com.eisenvault.sitewisepermissions.platformsample.DatabaseInitializer"
           init-method="init">
         <property name="jdbcTemplate" ref="jdbcTemplate" />
+        <property name="dataSource" ref="dataSource" />
     </bean>
 
 </beans>
