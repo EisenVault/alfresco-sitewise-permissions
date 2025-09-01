@@ -49,7 +49,6 @@ public class DatabaseInitializer {
     /**
      * Initialize the database by creating the permission_audit table
      */
-    @Transactional
     public void init() {
         try {
             logger.info("Initializing permission audit database table...");
@@ -74,15 +73,52 @@ public class DatabaseInitializer {
                 // Create new table with current schema
                 logger.info("Table does not exist, creating new table...");
                 createTable();
+                
+                // Verify table creation by checking if it's accessible
+                logger.debug("Verifying table creation with a test query...");
+                int retryCount = 0;
+                boolean tableAccessible = false;
+                
+                while (!tableAccessible && retryCount < 5) {
+                    try {
+                        jdbcTemplate.execute("SELECT 1 FROM permission_audit LIMIT 1");
+                        tableAccessible = true;
+                        logger.debug("Table creation verified successfully on attempt " + (retryCount + 1));
+                    } catch (Exception e) {
+                        retryCount++;
+                        logger.debug("Table not yet accessible, attempt " + retryCount + " of 5: " + e.getMessage());
+                        if (retryCount < 5) {
+                            try {
+                                Thread.sleep(200 * retryCount); // Exponential backoff
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                if (!tableAccessible) {
+                    logger.warn("Table creation verification failed after 5 attempts, proceeding anyway");
+                } else {
+                    logger.info("Table creation verified successfully");
+                }
             }
             
             // Create indexes
             createIndexes();
             
-            // Insert initialization record
-            insertInitializationRecord();
+            // Verify table is accessible before inserting initialization record
+            logger.debug("Checking if table is accessible for initialization record insertion...");
+            if (isTableAccessible()) {
+                logger.debug("Table is accessible, proceeding with initialization record insertion");
+                // Insert initialization record
+                insertInitializationRecord();
+            } else {
+                logger.warn("Table is not accessible, skipping initialization record insertion");
+            }
             
-            logger.info("Permission audit database table initialized successfully");
+            logger.info("Permission audit database table initialization process completed");
             
         } catch (Exception e) {
             logger.error("Error initializing permission audit database table: " + e.getMessage(), e);
@@ -125,6 +161,28 @@ public class DatabaseInitializer {
             logger.warn("Error detecting database type: " + e.getMessage() + ", assuming H2");
             databaseType = "H2";
         }
+        
+        // Log additional database connection information for debugging
+        try (java.sql.Connection connection = dataSource.getConnection()) {
+            logger.debug("Database connection auto-commit: " + connection.getAutoCommit());
+            logger.debug("Database connection transaction isolation: " + connection.getTransactionIsolation());
+        } catch (Exception e) {
+            logger.debug("Could not get connection details: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Check if the permission_audit table is accessible for queries
+     * @return true if the table is accessible, false otherwise
+     */
+    private boolean isTableAccessible() {
+        try {
+            jdbcTemplate.execute("SELECT 1 FROM permission_audit LIMIT 1");
+            return true;
+        } catch (Exception e) {
+            logger.debug("Table accessibility check failed: " + e.getMessage());
+            return false;
+        }
     }
     
     /**
@@ -135,12 +193,14 @@ public class DatabaseInitializer {
         try {
             if (dataSource == null) {
                 // Fallback to query method if DataSource not available
+                logger.debug("DataSource not available, using query method for table existence check");
                 return isTableExistsByQuery();
             }
             
             try (java.sql.Connection connection = dataSource.getConnection()) {
                 DatabaseMetaData metaData = connection.getMetaData();
                 String catalog = connection.getCatalog();
+                logger.debug("Checking table existence in catalog: " + catalog);
                 
                 // For Alfresco 5.2 compatibility, don't use getSchema() method
                 // Try different schema patterns without using getSchema()
@@ -162,6 +222,7 @@ public class DatabaseInitializer {
                     }
                 }
                 
+                logger.debug("Table not found in any schema");
                 return false;
             }
         } catch (Exception e) {
@@ -174,6 +235,7 @@ public class DatabaseInitializer {
      * Fallback method to check table existence by querying
      */
     private boolean isTableExistsByQuery() {
+        logger.debug("Using query method to check table existence");
         // Try different case variations for the table name
         String[] tableNames = {"permission_audit", "PERMISSION_AUDIT", "Permission_Audit"};
         
@@ -187,6 +249,7 @@ public class DatabaseInitializer {
             }
         }
         
+        logger.debug("Table not found with any name variation");
         return false;
     }
     
@@ -207,6 +270,7 @@ public class DatabaseInitializer {
                 return;
             }
             // If it's a different error, re-throw it
+            logger.error("Error creating table: " + e.getMessage(), e);
             throw e;
         }
     }
@@ -344,8 +408,11 @@ public class DatabaseInitializer {
      */
     private void insertInitializationRecord() {
         try {
+            logger.debug("Starting initialization record insertion process...");
+            
             // Check if initialization record already exists
             String checkSql = "SELECT COUNT(*) FROM permission_audit WHERE node_ref = 'system://init'";
+            logger.debug("Checking for existing initialization record with SQL: " + checkSql);
             Integer count = jdbcTemplate.queryForObject(checkSql, Integer.class);
             
             if (count == null || count == 0) {
@@ -359,6 +426,13 @@ public class DatabaseInitializer {
             }
         } catch (Exception e) {
             logger.warn("Could not insert initialization record: " + e.getMessage());
+            // Log the full exception for debugging
+            logger.debug("Full exception details:", e);
+            
+            // Check if it's a table not found error
+            if (e.getMessage().contains("relation") && e.getMessage().contains("does not exist")) {
+                logger.warn("Table 'permission_audit' appears to not exist yet. This may be a transaction timing issue.");
+            }
         }
     }
     
