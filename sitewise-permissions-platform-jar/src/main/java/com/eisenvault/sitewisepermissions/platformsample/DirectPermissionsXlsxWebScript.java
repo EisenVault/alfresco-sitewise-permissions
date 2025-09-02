@@ -200,7 +200,7 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         
         // Create headers
         String[] headers = {"Username", "Site", "Node Name", "Current Role / Permission Status", 
-                           "From Date", "User Status", "User Login", "Group Name", "NodeRef", "Node Type", "Document Path"};
+                           "From Date", "User Status", "User Login", "Group Name", "Document Path"};
         
         XSSFRow headerRow = sheet.createRow(0);
         for (int i = 0; i < headers.length; i++) {
@@ -248,12 +248,12 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
             row.createCell(5).setCellValue(permission.get("userStatus"));
             row.createCell(6).setCellValue(permission.get("userLogin"));
             row.createCell(7).setCellValue(permission.get("groupName"));
-            row.createCell(8).setCellValue(permission.get("nodeRef"));
-            row.createCell(9).setCellValue(permission.get("nodeType"));
-            row.createCell(10).setCellValue(permission.get("documentPath"));
+            // row.createCell(8).setCellValue(permission.get("nodeRef"));
+            // row.createCell(9).setCellValue(permission.get("nodeType"));
+            row.createCell(8).setCellValue(permission.get("documentPath"));
             
             // Apply data style to all cells
-            for (int i = 0; i < 11; i++) {
+            for (int i = 0; i < 9; i++) {
                 row.getCell(i).setCellStyle(dataStyle);
             }
         }
@@ -329,9 +329,9 @@ public class DirectPermissionsXlsxWebScript extends AbstractWebScript {
         
         entry.put("username", username);
         entry.put("site", site);
-        entry.put("nodeRef", nodeRef.toString());
+        // entry.put("nodeRef", nodeRef.toString());
         entry.put("nodeName", getNodeName(nodeRef));
-        entry.put("nodeType", getNodeType(nodeRef));
+        // entry.put("nodeType", getNodeType(nodeRef));
         entry.put("documentPath", getNodePath(nodeRef));
         entry.put("currentRole", getRoleDisplayName(accessPermission.getPermission()));
         entry.put("fromDate", getPermissionFromDate(nodeRef, accessPermission));
