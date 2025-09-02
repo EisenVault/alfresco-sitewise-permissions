@@ -1,0 +1,28 @@
+<extension>
+	<modules>
+		<!-- EisenVault - Hiten - This module is currently used only to show Admin Tools dropdown. 
+			 Other customisations are done by overriding the OOTB file.
+			 TO DO: Move other customisations from overridden OOTB files to this module -->
+		<module>
+			<id>Customizing EisenVault Header Menu</id>
+			<version>1.0</version>
+			<auto-deploy>true</auto-deploy>
+			<customizations>
+				<customization>
+					<targetPackageRoot>org.alfresco.share.header</targetPackageRoot>
+					<sourcePackageRoot>com.eisenvault.extension.share.header
+					</sourcePackageRoot>
+				</customization>
+				<!-- Below customisation is used for changes in the search pages -->
+				<customization>
+					<targetPackageRoot>org.alfresco.share.pages</targetPackageRoot>
+					<sourcePackageRoot>com.eisenvault.extension.share.header
+					</sourcePackageRoot>
+					<alwaysApply>
+						<webscript>share-header</webscript>
+					</alwaysApply>
+				</customization>
+			</customizations>
+		</module>
+	</modules>
+</extension>

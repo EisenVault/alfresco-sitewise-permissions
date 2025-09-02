@@ -16,31 +16,31 @@
 
 package com.eisenvault.sitewisepermissions.platformsample;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.alfresco.model.ContentModel;
+import org.alfresco.service.cmr.repository.NodeRef;
+import org.alfresco.service.cmr.repository.NodeService;
+import org.alfresco.service.cmr.repository.Path;
+import org.alfresco.service.cmr.security.AccessPermission;
+import org.alfresco.service.cmr.security.AuthorityService;
+import org.alfresco.service.cmr.security.PermissionService;
+import org.alfresco.service.cmr.security.PersonService;
+import org.alfresco.service.cmr.site.SiteService;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.extensions.webscripts.Cache;
 import org.springframework.extensions.webscripts.DeclarativeWebScript;
 import org.springframework.extensions.webscripts.Status;
 import org.springframework.extensions.webscripts.WebScriptRequest;
-import org.alfresco.service.cmr.repository.NodeRef;
-import org.alfresco.service.cmr.repository.NodeService;
-import org.alfresco.service.cmr.repository.Path;
-import org.alfresco.service.cmr.site.SiteService;
-import org.alfresco.service.cmr.security.PermissionService;
-import org.alfresco.service.cmr.security.AuthorityService;
-import org.alfresco.service.cmr.security.PersonService;
-import org.alfresco.model.ContentModel;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.Date;
-import java.text.SimpleDateFormat;
-import java.text.ParseException;
-import org.alfresco.service.cmr.security.AccessPermission;
 
 public class DirectPermissionsWebScript extends DeclarativeWebScript {
     private static Log logger = LogFactory.getLog(DirectPermissionsWebScript.class);
@@ -95,7 +95,8 @@ public class DirectPermissionsWebScript extends DeclarativeWebScript {
             String siteShortName = req.getParameter("site");
             String userStatusFilter = req.getParameter("userStatus"); // All, Active, Inactive
             String fromDateFilter = req.getParameter("fromDate"); // yyyy-MM-dd format
-            String usernameSearch = req.getParameter("usernameSearch"); // partial match
+            String usernameSearch = req.getParameter("usernameSearch"); // partial matchgit log --oneline main..origin/main
+
 
             // Determine which sites to process
             List<String> sitesToProcess = new ArrayList<String>();
@@ -189,12 +190,12 @@ public class DirectPermissionsWebScript extends DeclarativeWebScript {
                                     groupPermissionEntry.put("nodePath", getNodePath(nodeRef));
                                     groupPermissionEntry.put("role", accessPermission.getPermission());
                                     groupPermissionEntry.put("nodeName", (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NAME));
-                                    groupPermissionEntry.put("nodeType", nodeService.getType(nodeRef).toString());
+                                //     groupPermissionEntry.put("nodeType", nodeService.getType(nodeRef).toString());
                                     groupPermissionEntry.put("groupName", authorityName);
                                     groupPermissionEntry.put("permissionType", "GROUP");
                                     
                                     groupPermissionEntry.put("site", currentSiteName);
-                                    groupPermissionEntry.put("nodeRef", nodeRef.toString());
+                                //     groupPermissionEntry.put("nodeRef", nodeRef.toString());
                                     groupPermissionEntry.put("fromDate", getPermissionFromDate(nodeRef, accessPermission));
                                     groupPermissionEntry.put("userStatus", getUserStatus(groupUser));
                                     groupPermissionEntry.put("userLogin", getLastLoginDate(groupUser));
@@ -215,12 +216,12 @@ public class DirectPermissionsWebScript extends DeclarativeWebScript {
                                 permissionEntry.put("nodePath", getNodePath(nodeRef));
                                 permissionEntry.put("role", accessPermission.getPermission());
                                 permissionEntry.put("nodeName", (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NAME));
-                                permissionEntry.put("nodeType", nodeService.getType(nodeRef).toString());
+                                // permissionEntry.put("nodeType", nodeService.getType(nodeRef).toString());
                                 permissionEntry.put("groupName", "");
                                 permissionEntry.put("permissionType", "DIRECT");
                                 
                                 permissionEntry.put("site", currentSiteName);
-                                permissionEntry.put("nodeRef", nodeRef.toString());
+                                // permissionEntry.put("nodeRef", nodeRef.toString());
                                 permissionEntry.put("fromDate", getPermissionFromDate(nodeRef, accessPermission));
                                 permissionEntry.put("userStatus", getUserStatus(authorityName));
                                 permissionEntry.put("userLogin", getLastLoginDate(authorityName));

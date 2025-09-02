@@ -24,6 +24,10 @@ import javax.sql.DataSource;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Connection;
+import java.sql.Statement;
+import java.sql.SQLException;
+
 
 /**
  * Database initializer for the permission audit table.
@@ -51,7 +55,7 @@ public class DatabaseInitializer {
      */
     public void init() {
         try {
-            logger.info("Initializing permission audit database table...");
+            System.out.println("Initializing permission audit database table...");
             
             // Validate dependencies
             if (jdbcTemplate == null) {
@@ -63,15 +67,15 @@ public class DatabaseInitializer {
             
             // Check if table exists
             boolean tableExists = isTableExists();
-            logger.info("Table exists check result: " + tableExists);
+            System.out.println("Table exists check result: " + tableExists);
             
             if (tableExists) {
                 // Migrate existing table to new schema
-                logger.info("Table exists, checking for schema migration...");
+                System.out.println("Table exists, checking for schema migration...");
                 migrateTableSchema();
             } else {
                 // Create new table with current schema
-                logger.info("Table does not exist, creating new table...");
+                System.out.println("Table does not exist, creating new table...");
                 createTable();
                 
                 // Verify table creation by checking if it's accessible
@@ -118,7 +122,7 @@ public class DatabaseInitializer {
                 logger.warn("Table is not accessible, skipping initialization record insertion");
             }
             
-            logger.info("Permission audit database table initialization process completed");
+            System.out.println("Permission audit database table initialization process completed");
             
         } catch (Exception e) {
             logger.error("Error initializing permission audit database table: " + e.getMessage(), e);
@@ -131,7 +135,7 @@ public class DatabaseInitializer {
      */
     private void detectDatabaseType() throws SQLException {
         if (dataSource == null) {
-            logger.warn("DataSource not available, assuming H2 database");
+            System.out.println("DataSource not available, assuming H2 database");
             databaseType = "H2";
             return;
         }
@@ -152,13 +156,13 @@ public class DatabaseInitializer {
             } else if (productName.contains("microsoft sql server")) {
                 databaseType = "SQLServer";
             } else {
-                logger.warn("Unknown database type: " + productName + ", assuming H2");
+                System.out.println("Unknown database type: " + productName + ", assuming H2");
                 databaseType = "H2";
             }
             
-            logger.info("Detected database type: " + databaseType);
+            System.out.println("Detected database type: " + databaseType);
         } catch (Exception e) {
-            logger.warn("Error detecting database type: " + e.getMessage() + ", assuming H2");
+            System.out.println("Error detecting database type: " + e.getMessage() + ", assuming H2");
             databaseType = "H2";
         }
         
@@ -226,7 +230,7 @@ public class DatabaseInitializer {
                 return false;
             }
         } catch (Exception e) {
-            logger.warn("Error checking table existence via metadata, falling back to query method: " + e.getMessage());
+            System.out.println("Error checking table existence via metadata, falling back to query method: " + e.getMessage());
             return isTableExistsByQuery();
         }
     }
@@ -256,24 +260,50 @@ public class DatabaseInitializer {
     /**
      * Create the permission_audit table with database-specific syntax
      */
+    // private void createTable() {
+    //     String createTableSql = getCreateTableSql();
+    //     System.out.println("Executing table creation SQL: " + createTableSql);
+        
+    //     try {
+    //         jdbcTemplate.execute(createTableSql);
+    //         System.out.println("Table created successfully");
+    //     } catch (Exception e) {
+    //         // Check if the error is due to table already existing
+    //         if (e.getMessage().contains("already exists") || e.getMessage().contains("Table") && e.getMessage().contains("exists")) {
+    //             System.out.println("Table already exists, skipping creation: " + e.getMessage());
+    //             return;
+    //         }
+    //         // If it's a different error, re-throw it
+    //         logger.error("Error creating table: " + e.getMessage(), e);
+    //         throw e;
+    //     }
+    // }
+
     private void createTable() {
         String createTableSql = getCreateTableSql();
-        logger.info("Executing table creation SQL: " + createTableSql);
-        
-        try {
-            jdbcTemplate.execute(createTableSql);
-            logger.info("Table created successfully");
+        System.out.println("Executing table creation SQL: " + createTableSql);
+    
+        try (Connection connection = dataSource.getConnection();
+             Statement stmt = connection.createStatement()) {
+    
+            boolean prevAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(true); // ensure DDL is committed immediately
+    
+            stmt.executeUpdate(createTableSql);
+            System.out.println("Table created successfully");
+    
+            connection.setAutoCommit(prevAutoCommit); // restore previous mode
+    
         } catch (Exception e) {
-            // Check if the error is due to table already existing
-            if (e.getMessage().contains("already exists") || e.getMessage().contains("Table") && e.getMessage().contains("exists")) {
-                logger.info("Table already exists, skipping creation: " + e.getMessage());
-                return;
+            if (e.getMessage().contains("already exists")) {
+                System.out.println("Table already exists, skipping creation: " + e.getMessage());
+            } else {
+                logger.error("Error creating table: " + e.getMessage(), e);
+                throw new RuntimeException("Failed to create table", e);
             }
-            // If it's a different error, re-throw it
-            logger.error("Error creating table: " + e.getMessage(), e);
-            throw e;
         }
     }
+    
     
     /**
      * Get database-specific CREATE TABLE SQL
@@ -343,7 +373,7 @@ public class DatabaseInitializer {
      * Create indexes with database-specific syntax
      */
     private void createIndexes() {
-        logger.info("Creating indexes...");
+        System.out.println("Creating indexes...");
         
         String[] indexSqls = getIndexSqls();
         
@@ -356,7 +386,7 @@ public class DatabaseInitializer {
             }
         }
         
-        logger.info("Index creation completed");
+        System.out.println("Index creation completed");
     }
     
     /**
@@ -420,18 +450,18 @@ public class DatabaseInitializer {
                 String initRecordSql = getInitRecordSql();
                 logger.debug("Inserting initialization record: " + initRecordSql);
                 jdbcTemplate.execute(initRecordSql);
-                logger.info("Initialization record inserted successfully");
+                System.out.println("Initialization record inserted successfully");
             } else {
-                logger.info("Initialization record already exists, skipping insert");
+                System.out.println("Initialization record already exists, skipping insert");
             }
         } catch (Exception e) {
-            logger.warn("Could not insert initialization record: " + e.getMessage());
+            System.out.println("Could not insert initialization record: " + e.getMessage());
             // Log the full exception for debugging
-            logger.debug("Full exception details:", e);
+            System.out.println("Full exception details:"+ e);
             
             // Check if it's a table not found error
             if (e.getMessage().contains("relation") && e.getMessage().contains("does not exist")) {
-                logger.warn("Table 'permission_audit' appears to not exist yet. This may be a transaction timing issue.");
+                System.out.println("Table 'permission_audit' appears to not exist yet. This may be a transaction timing issue.");
             }
         }
     }
@@ -465,17 +495,17 @@ public class DatabaseInitializer {
      */
     private void migrateTableSchema() {
         try {
-            logger.info("Migrating existing permission_audit table to new schema...");
+            System.out.println("Migrating existing permission_audit table to new schema...");
             
             // Check if we need to add new columns
             boolean needsMigration = checkIfMigrationNeeded();
             
             if (!needsMigration) {
-                logger.info("Table already has current schema, no migration needed");
+                System.out.println("Table already has current schema, no migration needed");
                 return;
             }
             
-            logger.info("Adding new columns to existing table...");
+            System.out.println("Adding new columns to existing table...");
             
             // Add new columns with database-specific syntax
             addNewColumns();
@@ -486,7 +516,7 @@ public class DatabaseInitializer {
             // Update existing records to set is_active = true
             updateExistingRecords();
             
-            logger.info("Successfully migrated permission_audit table to new schema");
+            System.out.println("Successfully migrated permission_audit table to new schema");
             
         } catch (Exception e) {
             logger.error("Error migrating table schema: " + e.getMessage(), e);
@@ -534,7 +564,7 @@ public class DatabaseInitializer {
                     break;
             }
         } catch (Exception e) {
-            logger.warn("Could not add some columns (they may already exist): " + e.getMessage());
+            System.out.println("Could not add some columns (they may already exist): " + e.getMessage());
         }
     }
     
@@ -544,7 +574,7 @@ public class DatabaseInitializer {
     private void dropOldColumns() {
         try {
             jdbcTemplate.execute("ALTER TABLE permission_audit DROP COLUMN granted_by");
-            logger.info("Dropped old granted_by column");
+            System.out.println("Dropped old granted_by column");
         } catch (Exception e) {
             logger.debug("granted_by column doesn't exist or couldn't be dropped: " + e.getMessage());
         }
@@ -564,7 +594,7 @@ public class DatabaseInitializer {
                     break;
             }
         } catch (Exception e) {
-            logger.warn("Could not update existing records: " + e.getMessage());
+            System.out.println("Could not update existing records: " + e.getMessage());
         }
     }
 }
