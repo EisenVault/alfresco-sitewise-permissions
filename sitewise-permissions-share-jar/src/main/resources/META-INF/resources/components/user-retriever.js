@@ -281,8 +281,8 @@
               })
               .forEach(function (site) {
                 var option = document.createElement("option");
-                option.value = site.title;
-                option.innerHTML = site.title;
+                option.value = site.shortName;
+                option.text = site.title;
                 deptDropdown.appendChild(option);
               });
           } catch (e) {

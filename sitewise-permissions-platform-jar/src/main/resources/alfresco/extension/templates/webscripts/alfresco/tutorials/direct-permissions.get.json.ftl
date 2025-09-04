@@ -4,11 +4,11 @@
     "error": "${error}"
     <#else>
     "site": "${site!""}",
-    "totalNodes": ${totalNodes!0},
-    "totalPermissions": ${totalPermissions!0},
-    "userPermissions": ${userPermissions!0},
-    "groupPermissions": ${groupPermissions!0},
-    "effectivePermissions": ${effectivePermissions!0},
+    "totalNodes": ${totalNodes?c},
+    "totalPermissions": ${totalPermissions?c},
+    "userPermissions": ${userPermissions?c},
+    "groupPermissions": ${groupPermissions?c},
+    "effectivePermissions": ${effectivePermissions?c},
     "permissions": [
         <#if permissions??>
         <#list permissions as permission>
